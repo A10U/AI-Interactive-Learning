@@ -1,0 +1,93 @@
+// Orchestrator Backend: เสิร์ฟหน้าเว็บ + รับ Multimodal Payload แล้วส่งให้ engine (Offline หรือ Claude)
+// รัน: node server.js  แล้วเปิด http://localhost:3000
+import http from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { processTurn, openingLine } from './src/ruleEngine.js';
+import { buildDebrief } from './src/debrief.js';
+import { MENU, TEMPS, SWEETNESS, SIZES, MILKS, MISSIONS } from './src/menu.js';
+
+const PORT = Number(process.env.PORT) || 3000;
+const PUBLIC = fileURLToPath(new URL('./public/', import.meta.url));
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
+
+// โหลด Claude engine เฉพาะเมื่อมี API key และติดตั้ง SDK แล้ว (npm install)
+let llm = null;
+if (process.env.ANTHROPIC_API_KEY) {
+  try {
+    llm = await import('./src/llmEngine.js');
+  } catch (err) {
+    console.warn('⚠️  พบ ANTHROPIC_API_KEY แต่โหลด SDK ไม่ได้ (ลอง npm install) — ใช้ Offline engine แทน:', err.message);
+  }
+}
+
+function send(res, status, body, type = 'application/json; charset=utf-8') {
+  res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+  res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+}
+
+async function readJson(req) {
+  let raw = '';
+  for await (const chunk of req) {
+    raw += chunk;
+    if (raw.length > 100_000) throw new Error('payload too large');
+  }
+  return JSON.parse(raw || '{}');
+}
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    if (req.method === 'GET' && url.pathname === '/api/config') {
+      return send(res, 200, {
+        engine: llm ? 'claude' : 'offline',
+        menu: MENU.map(({ keywords, ...m }) => m),
+        temps: TEMPS, sweetness: SWEETNESS, sizes: SIZES, milks: MILKS, missions: MISSIONS,
+        opening: { th: openingLine('th'), en: openingLine('en') },
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/turn') {
+      const payload = await readJson(req);
+      console.log(`[turn] ${payload.session_id} ${JSON.stringify(payload.current_turn)}`);
+      let result;
+      if (llm && payload.use_llm !== false) {
+        try {
+          result = await llm.processTurnLLM(payload);
+        } catch (err) {
+          console.warn('⚠️  Claude engine error — fallback to offline:', err.message);
+          result = { ...processTurn(payload), engine: 'offline (fallback)' };
+        }
+      } else {
+        result = processTurn(payload);
+      }
+      return send(res, 200, result);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/debrief') {
+      return send(res, 200, buildDebrief(await readJson(req)));
+    }
+
+    if (req.method === 'GET') {
+      const path = normalize(join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname));
+      if (!path.startsWith(PUBLIC)) return send(res, 403, 'forbidden', 'text/plain');
+      try {
+        return send(res, 200, await readFile(path), TYPES[extname(path)] || 'application/octet-stream');
+      } catch {
+        return send(res, 404, 'not found', 'text/plain');
+      }
+    }
+    send(res, 405, { error: 'method not allowed' });
+  } catch (err) {
+    console.error(err);
+    send(res, 400, { error: err.message });
+  }
+});
+
+server.listen(PORT, () => {
+  console.log(`\n☕  AI Café — Interactive Learning`);
+  console.log(`   เปิดเบราว์เซอร์ (Chrome/Edge): http://localhost:${PORT}`);
+  console.log(`   Engine: ${llm ? 'Claude (' + (process.env.CLAUDE_MODEL || 'claude-opus-5') + ')' : 'Offline rule-based (ไม่ต้องใช้ API key)'}\n`);
+});

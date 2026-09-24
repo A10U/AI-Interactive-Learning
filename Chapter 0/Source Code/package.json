@@ -1,0 +1,15 @@
+{
+  "name": "ai-cafe-interactive-learning",
+  "version": "0.1.0",
+  "description": "AI Interactive Learning: ฝึกสื่อสารสั่งเครื่องดื่มกับบาริสต้า AI (Thai / English, multimodal: speech, text, pointing)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "latest"
+  }
+}

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Café — ฝึกสั่งเครื่องดื่ม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">☕</span>
+      <div>
+        <h1 data-i18n="title">AI Café</h1>
+        <p class="subtitle" data-i18n="subtitle"></p>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="langSeg" role="group" aria-label="Language">
+        <button data-lang="th" class="on">ไทย</button>
+        <button data-lang="en">English</button>
+      </div>
+      <label class="ctl"><span data-i18n="mode"></span>
+        <select id="modeSel">
+          <option value="free" data-i18n="modeFree"></option>
+          <option value="mission" data-i18n="modeMission"></option>
+        </select>
+      </label>
+      <label class="ctl"><span data-i18n="noise"></span>
+        <select id="noiseSel">
+          <option value="quiet" data-i18n="quiet"></option>
+          <option value="medium" data-i18n="medium"></option>
+          <option value="loud" data-i18n="loud"></option>
+        </select>
+      </label>
+      <label class="ctl check"><input type="checkbox" id="ttsChk" checked /> <span data-i18n="tts"></span></label>
+      <span class="engine" id="engineBadge">…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ฝั่งซ้าย: เคาน์เตอร์ + บทสนทนา -->
+    <section class="counter">
+      <div class="mission" id="missionCard" hidden>
+        <div class="mission-tag" data-i18n="missionTag"></div>
+        <div class="mission-title" id="missionTitle"></div>
+        <div class="mission-desc" id="missionDesc"></div>
+      </div>
+
+      <div class="scene">
+        <div class="barista" id="barista" data-state="idle">
+          <div class="face">🧑‍🍳</div>
+          <div class="state-label" id="stateLabel"></div>
+        </div>
+        <div class="counter-top"></div>
+      </div>
+
+      <div class="chat" id="chat" aria-live="polite"></div>
+
+      <div class="composer">
+        <div class="staged" id="staged" hidden>
+          <span id="stagedText"></span>
+          <button class="x" id="clearPoint" aria-label="clear">✕</button>
+        </div>
+        <div class="input-row">
+          <button class="mic" id="micBtn" title="">🎤</button>
+          <input id="textInput" autocomplete="off" />
+          <button class="send" id="sendBtn" data-i18n="send"></button>
+        </div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </section>
+
+    <!-- ฝั่งขวา: ป้ายเมนู + ใบออเดอร์ + โค้ช -->
+    <aside class="side">
+      <section class="panel">
+        <h2 data-i18n="menuBoard"></h2>
+        <p class="panel-sub" data-i18n="menuHint"></p>
+        <div class="menu" id="menu"></div>
+      </section>
+
+      <section class="panel ticket">
+        <h2 data-i18n="ticket"></h2>
+        <ul class="slots" id="slots"></ul>
+        <div class="total"><span data-i18n="total"></span><strong id="total">0 ฿</strong></div>
+      </section>
+
+      <section class="panel coach">
+        <h2 data-i18n="coach"></h2>
+        <div id="coachBody" class="coach-body"><p class="muted" data-i18n="coachEmpty"></p></div>
+      </section>
+
+      <div class="actions">
+        <button id="debriefBtn" class="primary" data-i18n="debrief"></button>
+        <button id="restartBtn" data-i18n="restart"></button>
+      </div>
+
+      <details class="panel devbox">
+        <summary data-i18n="payload"></summary>
+        <pre id="payloadView">{}</pre>
+      </details>
+    </aside>
+  </main>
+
+  <dialog id="debriefDlg">
+    <div class="debrief" id="debriefBody"></div>
+    <div class="dlg-actions">
+      <button id="dlgClose" data-i18n="close"></button>
+      <button id="dlgRestart" class="primary" data-i18n="playAgain"></button>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
