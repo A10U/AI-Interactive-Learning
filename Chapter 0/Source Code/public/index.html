@@ -22,6 +22,9 @@
         <button data-lang="th" class="on">ไทย</button>
         <button data-lang="en">English</button>
       </div>
+      <label class="ctl"><span data-i18n="talkLang"></span>
+        <select id="talkSel"></select>
+      </label>
       <label class="ctl"><span data-i18n="mode"></span>
         <select id="modeSel">
           <option value="free" data-i18n="modeFree"></option>
@@ -37,6 +40,7 @@
       </label>
       <label class="ctl check"><input type="checkbox" id="ttsChk" checked /> <span data-i18n="tts"></span></label>
       <span class="engine" id="engineBadge">…</span>
+      <button id="keyBtn" class="icon-btn" hidden title="API key">🔑</button>
     </div>
   </header>
 
@@ -103,6 +107,20 @@
       </details>
     </aside>
   </main>
+
+  <dialog id="keyDlg">
+    <form class="debrief" method="dialog" id="keyForm">
+      <h3 data-i18n="keyTitle"></h3>
+      <p class="muted" data-i18n="keyHelp"></p>
+      <input type="password" id="keyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+      <p id="keyMsg" class="muted" role="status"></p>
+      <div class="dlg-actions">
+        <button type="button" id="keyClear" data-i18n="keyClear"></button>
+        <button type="button" id="keyCancel" data-i18n="close"></button>
+        <button type="submit" id="keySave" class="primary" data-i18n="keySave"></button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="debriefDlg">
     <div class="debrief" id="debriefBody"></div>

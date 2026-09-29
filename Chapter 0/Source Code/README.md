@@ -30,6 +30,8 @@ npm install
 set ANTHROPIC_API_KEY=sk-ant-...      # PowerShell: $env:ANTHROPIC_API_KEY="sk-ant-..."
 node server.js
 ```
+ตั้ง key ได้ 3 ทาง: environment variable ข้างบน · ไฟล์ **`.env`** ในโฟลเดอร์นี้ (`ANTHROPIC_API_KEY=sk-ant-...` — ถูก git ignore แล้ว) · หรือกดปุ่ม **🔑** บนหน้าเว็บ (เฉพาะเปิดจาก localhost, เก็บใน memory ไม่บันทึกลงไฟล์)
+
 ค่าเริ่มต้นใช้โมเดล `claude-opus-5` (เปลี่ยนได้ด้วย `CLAUDE_MODEL`) ถ้าเรียก API ไม่สำเร็จ ระบบจะใช้ Offline engine แทนโดยอัตโนมัติ
 
 ## โครงสร้างโปรเจกต์

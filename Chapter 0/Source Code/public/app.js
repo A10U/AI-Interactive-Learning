@@ -2,6 +2,9 @@
 const I18N = {
   th: {
     title: 'AI Café', subtitle: 'ฝึกสื่อสารในชีวิตประจำวัน: สั่งเครื่องดื่มกับบาริสต้า AI',
+    keyTitle: 'ตั้งค่า Anthropic API key', keyHelp: 'เก็บในหน่วยความจำของเซิร์ฟเวอร์เครื่องนี้เท่านั้น ไม่บันทึกลงไฟล์ (ถาวรให้ใช้ไฟล์ .env) — ปิดเซิร์ฟเวอร์แล้วต้องกรอกใหม่',
+    keySave: 'บันทึกและใช้ Claude', keyClear: 'ล้าง key', keyChecking: 'กำลังตรวจสอบ key…', keyOk: 'เชื่อมต่อ Claude แล้ว', keyOff: 'ล้าง key แล้ว กลับไปใช้ Offline',
+    talkLang: 'ภาษาสนทนา', talkSame: 'ตามหน้าจอ', talkAuto: '🌐 อัตโนมัติ (ตามที่พูด)',
     mode: 'โหมด', modeFree: 'อิสระ', modeMission: 'ภารกิจ',
     noise: 'เสียงในร้าน', quiet: 'เงียบ', medium: 'ปานกลาง', loud: 'ดังมาก', tts: 'บาริสต้าพูดออกเสียง',
     missionTag: '🎯 ภารกิจของคุณ', send: 'ส่ง', placeholder: 'พิมพ์ หรือกด 🎤 เพื่อพูด…',
@@ -19,6 +22,9 @@ const I18N = {
   },
   en: {
     title: 'AI Café', subtitle: 'Everyday communication practice: order a drink from an AI barista',
+    keyTitle: 'Anthropic API key', keyHelp: 'Kept in this server\'s memory only, never written to disk (use a .env file to persist it). You will need to re-enter it after the server restarts.',
+    keySave: 'Save & use Claude', keyClear: 'Clear key', keyChecking: 'Checking key…', keyOk: 'Connected to Claude', keyOff: 'Key cleared — back to Offline',
+    talkLang: 'Talk in', talkSame: 'Same as UI', talkAuto: '🌐 Auto (match customer)',
     mode: 'Mode', modeFree: 'Free play', modeMission: 'Mission',
     noise: 'Café noise', quiet: 'Quiet', medium: 'Medium', loud: 'Loud', tts: 'Barista speaks aloud',
     missionTag: '🎯 Your mission', send: 'Send', placeholder: 'Type, or press 🎤 to speak…',
@@ -43,9 +49,26 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* ignore */ } },
 };
 
+// ภาษาสนทนากับบาริสต้า (ใช้ได้เต็มที่ในโหมด Claude; โหมด Offline รองรับเฉพาะไทย/อังกฤษ)
+// ภาษายอดนิยมขึ้นก่อน ตามด้วยรหัส ISO 639-1 ทั้งหมด (ชื่อภาษาให้เบราว์เซอร์แปลงด้วย Intl.DisplayNames)
+const TALK_TOP = ['th-TH', 'en-US', 'zh-CN', 'ja-JP', 'ko-KR', 'es-ES', 'fr-FR', 'de-DE', 'pt-BR', 'it-IT', 'ru-RU', 'ar-SA', 'hi-IN', 'vi-VN', 'id-ID', 'ms-MY', 'tr-TR'];
+const ISO639_1 = ('aa ab af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu').split(' ');
+const langName = (code) => {
+  try { return new Intl.DisplayNames([code], { type: 'language' }).of(code) || code; } catch { return code; }
+};
+const talkLocale = () => (S.talk === 'ui' || S.talk === 'auto' ? (S.lang === 'th' ? 'th-TH' : 'en-US') : S.talk);
+function talkOptions() {
+  const top = new Set(TALK_TOP.map((c) => c.split('-')[0]));
+  const opt = (c, n) => `<option value="${c}">${esc(n)}</option>`;
+  const rest = ISO639_1.filter((c) => !top.has(c)).map((c) => [c, langName(c)]).sort((x, y) => x[1].localeCompare(y[1]));
+  return opt('ui', '') + opt('auto', '') + TALK_TOP.map((c) => opt(c, langName(c))).join('')
+    + `<option disabled>──────────</option>` + rest.map(([c, n]) => opt(c, `${n} (${c})`)).join('');
+}
+
 let CFG = null;
 const S = {
   lang: store.get('cafe.lang', 'th'),
+  talk: store.get('cafe.talk', 'ui'),
   mode: 'free',
   noise: 'quiet',
   tts: true,
@@ -62,9 +85,32 @@ const S = {
 const t = () => I18N[S.lang];
 
 // ---------------------------------------------------------------- init
+// โหมด static (เช่น GitHub Pages): ไม่มีเซิร์ฟเวอร์ ให้รัน Offline engine ในเบราว์เซอร์แทน
+let STATIC = null; // { processTurn, buildDebrief } เมื่ออยู่โหมด static
+async function loadStatic() {
+  const [menu, rule, deb] = await Promise.all([import('./src/menu.js'), import('./src/ruleEngine.js'), import('./src/debrief.js')]);
+  STATIC = { processTurn: rule.processTurn, buildDebrief: deb.buildDebrief };
+  return {
+    engine: 'offline', can_set_key: false,
+    menu: menu.MENU.map(({ keywords, ...m }) => m),
+    temps: menu.TEMPS, sweetness: menu.SWEETNESS, sizes: menu.SIZES, milks: menu.MILKS, missions: menu.MISSIONS,
+    opening: { th: rule.openingLine('th'), en: rule.openingLine('en') },
+  };
+}
+
 async function init() {
-  CFG = await fetch('/api/config').then((r) => r.json());
+  try {
+    const r = await fetch('/api/config');
+    if (!r.ok) throw new Error(r.statusText);
+    CFG = await r.json();
+  } catch {
+    CFG = await loadStatic();
+  }
   $('engineBadge').dataset.engine = CFG.engine;
+  $('talkSel').innerHTML = talkOptions();
+  $('talkSel').value = S.talk;
+  $('talkSel').disabled = CFG.engine !== 'claude';
+  $('keyBtn').hidden = !CFG.can_set_key;
   bindUi();
   applyLang();
   restart();
@@ -73,6 +119,11 @@ async function init() {
 function bindUi() {
   document.querySelectorAll('#langSeg button').forEach((b) =>
     b.addEventListener('click', () => { S.lang = b.dataset.lang; store.set('cafe.lang', S.lang); applyLang(); restart(); }));
+  $('talkSel').addEventListener('change', (e) => { S.talk = e.target.value; store.set('cafe.talk', S.talk); applyLang(); });
+  $('keyBtn').addEventListener('click', () => { $('keyMsg').textContent = ''; $('keyInput').value = ''; $('keyDlg').showModal(); });
+  $('keyCancel').addEventListener('click', () => $('keyDlg').close());
+  $('keyForm').addEventListener('submit', (e) => { e.preventDefault(); setKey($('keyInput').value); });
+  $('keyClear').addEventListener('click', () => setKey(null));
   $('modeSel').addEventListener('change', (e) => { S.mode = e.target.value; restart(); });
   $('noiseSel').addEventListener('change', (e) => { S.noise = e.target.value; });
   $('ttsChk').addEventListener('change', (e) => { S.tts = e.target.checked; if (!S.tts) speechSynthesis?.cancel(); });
@@ -87,6 +138,22 @@ function bindUi() {
   $('dlgRestart').addEventListener('click', () => { $('debriefDlg').close(); restart(); });
 }
 
+async function setKey(key) {
+  $('keyMsg').textContent = t().keyChecking;
+  const r = await fetch('/api/key', {
+    method: key ? 'POST' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: key ? JSON.stringify({ key }) : undefined,
+  });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) { $('keyMsg').textContent = out.error || `HTTP ${r.status}`; return; }
+  CFG.engine = out.engine;
+  $('talkSel').disabled = CFG.engine !== 'claude';
+  applyLang();
+  $('keyMsg').textContent = key ? t().keyOk : t().keyOff;
+  $('keyInput').value = '';
+}
+
 function applyLang() {
   document.documentElement.lang = S.lang;
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t()[el.dataset.i18n] ?? ''; });
@@ -94,7 +161,9 @@ function applyLang() {
   $('textInput').placeholder = t().placeholder;
   $('engineBadge').textContent = CFG.engine === 'claude' ? `🤖 ${t().engineClaude}` : `⚙️ ${t().engineOffline}`;
   $('micBtn').title = SR ? '' : t().micUnsupported;
-  if (recognizer) recognizer.lang = S.lang === 'th' ? 'th-TH' : 'en-US';
+  if (recognizer) recognizer.lang = talkLocale();
+  $('talkSel').options[0].textContent = t().talkSame;
+  $('talkSel').options[1].textContent = t().talkAuto;
   renderMenu();
 }
 
@@ -224,6 +293,7 @@ function buildPayload(speech, text, point) {
     session_id: S.session,
     scenario: 'cafe_counter',
     language: S.lang,
+    conversation_language: S.talk === 'ui' ? null : S.talk,
     environment_factors: { noise_level: S.noise, queue_status: 'normal' },
     current_turn: {
       user_speech: speech,
@@ -273,9 +343,14 @@ async function sendTurn() {
   $('chat').appendChild(typing);
 
   try {
-    const res = await fetch('/api/turn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const r = await res.json();
-    if (!res.ok) throw new Error(r.error || res.statusText);
+    let r;
+    if (STATIC) {
+      r = STATIC.processTurn(payload);
+    } else {
+      const res = await fetch('/api/turn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      r = await res.json();
+      if (!res.ok) throw new Error(r.error || res.statusText);
+    }
     await new Promise((ok) => setTimeout(ok, 350)); // จังหวะให้ดูเป็นธรรมชาติ
     typing.remove();
     S.history.push({ role: 'user', content: userLine }, { role: 'barista', content: r.barista_reply });
@@ -303,9 +378,9 @@ async function sendTurn() {
 
 // ---------------------------------------------------------------- debrief
 async function showDebrief() {
-  const d = await fetch('/api/debrief', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ language: S.lang, turns: S.turns, order_state: S.order, mission_id: S.mission?.id || null }),
+  const debriefIn = { language: S.lang, turns: S.turns, order_state: S.order, mission_id: S.mission?.id || null };
+  const d = STATIC ? STATIC.buildDebrief(debriefIn) : await fetch('/api/debrief', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(debriefIn),
   }).then((r) => r.json());
   const L = t().d;
   const bar = (label, v, note) => `<div class="bar"><span>${esc(label)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span>${v}</span></div>${note ? `<div class="note">${esc(note)}</div>` : ''}`;
@@ -350,7 +425,7 @@ function toggleMic() {
   if (!SR) { $('hint').textContent = t().micUnsupported; return; }
   if (recognizing) { recognizer.stop(); return; }
   speechSynthesis?.cancel();
-  recognizer.lang = S.lang === 'th' ? 'th-TH' : 'en-US';
+  recognizer.lang = talkLocale();
   try { recognizer.start(); } catch (err) { $('hint').textContent = t().micError + err.message; }
 }
 
@@ -358,7 +433,7 @@ function speak(text, force = false) {
   if ((!S.tts && !force) || !window.speechSynthesis) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text.replace(/[☕🔊]/g, ''));
-  u.lang = S.lang === 'th' ? 'th-TH' : 'en-US';
+  u.lang = talkLocale();
   const voice = speechSynthesis.getVoices().find((v) => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)));
   if (voice) u.voice = voice;
   u.rate = 1.05;

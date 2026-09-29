@@ -4,7 +4,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import { MENU, TEMPS, SWEETNESS, SIZES, MILKS, emptyOrder, missingSlots, totalPrice } from './menu.js';
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5';
-const client = new Anthropic();
+let client = null;
+const getClient = () => (client ??= new Anthropic());
+
+// ตั้ง/ล้าง API key ระหว่างรัน (ใช้จากหน้าตั้งค่า) — ตรวจว่า key ใช้ได้ก่อนเก็บ ถ้าไม่ผ่านจะ throw
+export async function setApiKey(key) {
+  if (!key) { client = null; return; }
+  const candidate = new Anthropic({ apiKey: key });
+  await candidate.models.list({ limit: 1 });
+  client = candidate;
+}
 
 const nullableEnum = (values) => ({ anyOf: [{ type: 'string', enum: values }, { type: 'null' }] });
 
@@ -65,17 +74,19 @@ ${menuText}
    - หากข้อมูลไม่ครบหรือกำกวม (เช่น บอกแค่ "กาแฟ") ให้ถามเจาะจงทีละเรื่องอย่างสุภาพ
    - ห้ามเฉลยหรือเดาแทนผู้เรียน ให้ผู้เรียนได้คิดและตอบเอง
    - เมื่อข้อมูลครบ ให้สรุปออเดอร์และยอดเงิน แล้วตั้ง action_state = "making"
-3. ตอบเป็นภาษาตาม field "language" ของ payload (th = ไทย ใช้ "ครับ", en = English)
+3. ภาษาที่ใช้ตอบ: ถ้า payload มี "conversation_language" เป็นรหัสภาษา (BCP-47/ISO 639-1 เช่น ja-JP, sw) ให้ตอบเป็นภาษานั้น (ค่า "auto" = ตามภาษาผู้เรียน)
+   ถ้าเป็น null หรือ "auto" ให้ตอบตามภาษาที่ผู้เรียนพิมพ์/พูดล่าสุด หากไม่ชัดเจนให้ใช้ "language" (th = ไทย ใช้ "ครับ", en = English)
+   ผู้เรียนอาจพูดหลายภาษา เมนูอาจถูกเรียกด้วยชื่อท้องถิ่น — ให้แมปเป็น id ในเมนูให้ถูกต้อง ค่า enum ใน order_state ต้องเป็นรหัสภาษาอังกฤษเสมอ
 4. order_state: ส่งสถานะออเดอร์ล่าสุดทั้งหมด (คงค่าเดิมที่ยังไม่เปลี่ยน)
 
-บทบาทโค้ช (coach) — เขียนเป็นภาษาเดียวกับ language:
+บทบาทโค้ช (coach) — เขียนเป็นภาษาเดียวกับ language (ภาษาของหน้าจอ ไม่ใช่ภาษาสนทนา):
 - rating: excellent (ชัดเจน/ใช้หลายช่องทางช่วยกันดี/บอกเงื่อนไขเฉพาะตัวชัด), good (สื่อสารสำเร็จบางส่วน หรือชี้อย่างเดียวแบบ AAC), improve (กำกวม ต้องถามซ้ำ)
 - notes: สิ่งที่สังเกตได้ 1-2 ข้อ, tip: คำแนะนำที่ดีกว่า 1 ข้อ
 - politeness 0-100 (null ถ้าไม่ได้พูด/พิมพ์เลย), clarity 0-100`;
 
 export async function processTurnLLM(payload) {
   const lang = payload.language === 'en' ? 'en' : 'th';
-  const response = await client.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 4000,
     output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },

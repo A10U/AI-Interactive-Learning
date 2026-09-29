@@ -1,0 +1,38 @@
+# Deploy โหมด Offline (รันในเบราว์เซอร์ทั้งหมด) ขึ้น GitHub Pages ทุกครั้งที่ push เข้า main
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build site (public + src)
+        run: |
+          APP="Chapter 0/Source Code"
+          mkdir -p _site/src
+          cp -r "$APP/public/." _site/
+          cp "$APP/src/menu.js" "$APP/src/nlu.js" "$APP/src/ruleEngine.js" "$APP/src/debrief.js" _site/src/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
