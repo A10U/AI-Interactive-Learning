@@ -87,8 +87,18 @@ const modName = (m) => sc().modifiers[m]?.[S.lang] ?? m;
 const algName = (a) => CFG.allergens[a]?.[S.lang] ?? a;
 
 // ---------------------------------------------------------------- init
+// โหลด config จากเซิร์ฟเวอร์ ถ้าไม่มีเซิร์ฟเวอร์ (เช่น GitHub Pages) ให้จำลอง /api/* ในเบราว์เซอร์ด้วย Offline engine
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    if (r.ok) return await r.json();
+  } catch { /* ไม่มีเซิร์ฟเวอร์ */ }
+  (await import('./staticApi.js')).installStaticApi();
+  return fetch('/api/config').then((r) => r.json());
+}
+
 async function init() {
-  CFG = await fetch('/api/config').then((r) => r.json());
+  CFG = await loadConfig();
   if (!CFG.scenarios.some((x) => x.id === S.scId)) S.scId = CFG.scenarios[0].id;
   bindUi();
   applyLang();
