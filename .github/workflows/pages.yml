@@ -1,4 +1,9 @@
 # Deploy โหมด Offline (รันในเบราว์เซอร์ทั้งหมด) ขึ้น GitHub Pages ทุกครั้งที่ push เข้า main
+#   /           → หน้ารวมบทเรียน (pages/index.html)
+#   /chapter0/  → Chapter 0 (AI Café)
+#   /chapter1/  → Chapter 1 (การสั่งอาหารทั่วไป)
+#   /chapter5/  → Chapter 5 (สั่งอาหารและเครื่องดื่มเฉพาะทาง)
+# เพิ่มบทใหม่: ใส่เลขบทใน CHAPTERS ด้านล่าง แล้วเพิ่มการ์ดใน pages/index.html
 name: Deploy to GitHub Pages
 
 on:
@@ -23,13 +28,22 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build site (public + src)
+      - name: Build site (public + src ของแต่ละบท)
+        env:
+          CHAPTERS: "0 1 5"
         run: |
-          APP="Chapter 0/Source Code"
-          mkdir -p _site/src
-          cp -r "$APP/public/." _site/
-          cp "$APP/src/menu.js" "$APP/src/nlu.js" "$APP/src/ruleEngine.js" "$APP/src/debrief.js" _site/src/
+          mkdir -p _site
+          cp pages/index.html _site/index.html
+          for n in $CHAPTERS; do
+            APP="Chapter $n/Source Code"
+            OUT="_site/chapter$n"
+            mkdir -p "$OUT/src"
+            cp -r "$APP/public/." "$OUT/"
+            # ก๊อป engine ทั้งหมด ยกเว้น llmEngine.js (ต้องใช้ Anthropic SDK + API key ฝั่งเซิร์ฟเวอร์)
+            find "$APP/src" -maxdepth 1 -name '*.js' ! -name 'llmEngine.js' -exec cp {} "$OUT/src/" \;
+          done
           touch _site/.nojekyll
+          find _site -type f | sort
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
