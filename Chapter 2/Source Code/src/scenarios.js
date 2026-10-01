@@ -1,4 +1,4 @@
-// Domain Ontology ของ Chapter 5: สั่งอาหารและเครื่องดื่มเฉพาะทาง (Specialty Food & Drinks)
+// Domain Ontology ของ Chapter 2: สั่งอาหารและเครื่องดื่มเฉพาะทาง (Specialty Food & Drinks)
 // 4 สถานการณ์ — เบเกอรี / อาหารนานาชาติ / น้ำผลไม้และมัทฉะ / ค็อกเทลและม็อกเทล (มีการตรวจบัตรยืนยันอายุ)
 // ทุกค่ารองรับ 2 ภาษา (th / en), kw = คำที่ตัวแยกความหมาย Offline ใช้, q = คำที่บ่งบอกว่ากำลัง "ถาม" เรื่องนั้น (ใช้ในโหมดสลับบทบาท)
 
@@ -321,10 +321,10 @@ const BAR_MENU = [
     keywords: ['แพชชั่นฟรุตฟิซ', 'แพชชั่นฟรุต', 'เสาวรสโซดา', 'เสาวรส', 'passion fruit fizz', 'passion fruit'], groups: ['sweetness', 'ice'] },
 ];
 
-// ---------------------------------------------------------------- สถานการณ์ (Scenario 5.1 - 5.4)
+// ---------------------------------------------------------------- สถานการณ์ (Scenario 2.1 - 2.4)
 export const SCENARIOS = {
   bakery: {
-    id: 'bakery', code: '5.1', icon: '🥐', th: 'ร้านเบเกอรี', en: 'Bakery',
+    id: 'bakery', code: '2.1', icon: '🥐', th: 'ร้านเบเกอรี', en: 'Bakery',
     staff: { th: 'พนักงานร้านเบเกอรี', en: 'Bakery staff', emoji: '👩‍🍳' },
     customer: { emoji: '🧑' },
     unit: { th: 'ชิ้น', en: 'piece' },
@@ -362,7 +362,7 @@ export const SCENARIOS = {
   },
 
   international: {
-    id: 'international', code: '5.2', icon: '🌏', th: 'อาหารนานาชาติ', en: 'International Food',
+    id: 'international', code: '2.2', icon: '🌏', th: 'อาหารนานาชาติ', en: 'International Food',
     staff: { th: 'พนักงานเสิร์ฟ', en: 'Server', emoji: '🧑‍🍳' },
     customer: { emoji: '🧑' },
     unit: { th: 'จาน', en: 'plate' },
@@ -398,7 +398,7 @@ export const SCENARIOS = {
   },
 
   juice: {
-    id: 'juice', code: '5.3', icon: '🍵', th: 'น้ำผลไม้และมัทฉะ', en: 'Juice & Matcha Bar',
+    id: 'juice', code: '2.3', icon: '🍵', th: 'น้ำผลไม้และมัทฉะ', en: 'Juice & Matcha Bar',
     staff: { th: 'พนักงานร้านน้ำ', en: 'Drinks staff', emoji: '🧑‍🍳' },
     customer: { emoji: '🧑' },
     unit: { th: 'แก้ว', en: 'glass' },
@@ -433,7 +433,7 @@ export const SCENARIOS = {
   },
 
   bar: {
-    id: 'bar', code: '5.4', icon: '🍹', th: 'ค็อกเทลและม็อกเทล', en: 'Cocktails & Mocktails',
+    id: 'bar', code: '2.4', icon: '🍹', th: 'ค็อกเทลและม็อกเทล', en: 'Cocktails & Mocktails',
     staff: { th: 'บาร์เทนเดอร์', en: 'Bartender', emoji: '🤵' },
     customer: { emoji: '🧑' },
     unit: { th: 'แก้ว', en: 'glass' },

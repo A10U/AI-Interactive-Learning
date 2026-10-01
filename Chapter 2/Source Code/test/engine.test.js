@@ -1,4 +1,4 @@
-// ทดสอบ Chapter 5: 4 สถานการณ์ (โหมดลูกค้า) + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน)
+// ทดสอบ Chapter 2: 4 สถานการณ์ (โหมดลูกค้า) + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { processTurn } from '../src/actorEngine.js';
@@ -26,8 +26,8 @@ const debrief = (scenario, log, mission_id) => buildDebrief({
   turns: log.map((r) => ({ channels: { text: true }, coach: r.coach })),
 });
 
-// ---------------------------------------------------------------- 5.1 เบเกอรี
-test('5.1 ครัวซองต์อัลมอนด์ อุ่น ทานที่ร้าน + ไอศกรีม → ภารกิจ b1 สำเร็จ, พนักงานพูด "ค่ะ"', () => {
+// ---------------------------------------------------------------- 2.1 เบเกอรี
+test('2.1 ครัวซองต์อัลมอนด์ อุ่น ทานที่ร้าน + ไอศกรีม → ภารกิจ b1 สำเร็จ, พนักงานพูด "ค่ะ"', () => {
   const log = play('bakery', 'th', [{ user_text: 'ขอครัวซองต์อัลมอนด์ อุ่นให้หน่อย ทานที่ร้าน เพิ่มไอศกรีมด้วยค่ะ' }, { user_text: 'ถูกต้องค่ะ' }]);
   assert.match(log[0].actor_reply, /นะคะ/);
   assert.doesNotMatch(log[0].actor_reply, /ครับ/);
@@ -36,21 +36,21 @@ test('5.1 ครัวซองต์อัลมอนด์ อุ่น ท�
   assert.equal(debrief('bakery', log, 'b1').scores.goal, 100);
 });
 
-test('5.1 เค้กทั้งปอนด์ใช้ราคาเฉพาะเมนู + เทียน + กล่องของขวัญ', () => {
+test('2.1 เค้กทั้งปอนด์ใช้ราคาเฉพาะเมนู + เทียน + กล่องของขวัญ', () => {
   const [a] = play('bakery', 'th', [{ user_text: 'ขอเค้กช็อกโกแลตทั้งปอนด์ กลับบ้าน ขอเทียนกับกล่องของขวัญด้วยครับ' }]);
   assert.equal(a.order_state.options.slice, 'whole');
   assert.equal(a.total_price, 120 + 880 + 10 + 25);
 });
 
-test('5.1 แพ้ถั่วเปลือกแข็ง + ครัวซองต์อัลมอนด์ → ปฏิเสธและแนะนำเมนูอื่น', () => {
+test('2.1 แพ้ถั่วเปลือกแข็ง + ครัวซองต์อัลมอนด์ → ปฏิเสธและแนะนำเมนูอื่น', () => {
   const [a] = play('bakery', 'en', [{ user_text: "I'm allergic to tree nuts. Can I get the almond croissant?" }], { profile: { allergies: ['tree_nut'] } });
   assert.equal(a.order_state.item, null);
   assert.equal(a.action_state, 'warning');
   assert.match(a.actor_reply, /can't remove/);
 });
 
-// ---------------------------------------------------------------- 5.2 อาหารนานาชาติ
-test('5.2 ราเมงทงคตสึ เส้นแข็ง + ไข่ + ไม่ใส่ต้นหอม → ทวนกลับครบ = recap', () => {
+// ---------------------------------------------------------------- 2.2 อาหารนานาชาติ
+test('2.2 ราเมงทงคตสึ เส้นแข็ง + ไข่ + ไม่ใส่ต้นหอม → ทวนกลับครบ = recap', () => {
   const log = play('international', 'th', [
     { user_text: 'ราเมงซุปทงคตสึ เส้นแข็ง เพิ่มไข่ยางมะตูม ไม่ใส่ต้นหอมครับ' },
     { user_text: 'ราเมงทงคตสึ เส้นแข็ง เพิ่มไข่ยางมะตูม ไม่ใส่ต้นหอม ถูกต้องครับ' },
@@ -60,35 +60,35 @@ test('5.2 ราเมงทงคตสึ เส้นแข็ง + ไข่
   assert.equal(log[1].coach.flags.recap, true);
 });
 
-test('5.2 English steak: medium rare, pepper sauce on the side, salad — one shot', () => {
+test('2.2 English steak: medium rare, pepper sauce on the side, salad — one shot', () => {
   const [a] = play('international', 'en', [{ user_text: 'Ribeye medium rare with black pepper sauce on the side and a salad please' }]);
   assert.equal(a.order_state.phase, 'confirming');
   assert.equal(a.order_state.options.doneness, 'medium_rare');
   assert.ok(a.order_state.modifiers.includes('sauce_side'));
 });
 
-test('5.2 แพ้กลูเตน + ขอแป้งนาน → พนักงานเตือน และเสนอข้าวแทน', () => {
+test('2.2 แพ้กลูเตน + ขอแป้งนาน → พนักงานเตือน และเสนอข้าวแทน', () => {
   const log = play('international', 'th', [{ user_text: 'แพ้กลูเตนครับ ขอบัตเตอร์ชิคเก้นกับแป้งนาน เผ็ดกลาง' }, { user_text: 'ข้าวครับ' }, { user_text: 'ใช่ครับ' }], { profile: { allergies: ['gluten'] } });
   assert.equal(log[0].order_state.options.carb, undefined);
   assert.match(log[0].actor_reply, /ข้าวบาสมาติ/);
   assert.equal(debrief('international', log, 'i4').scores.goal, 100);
 });
 
-// ---------------------------------------------------------------- 5.3 น้ำผลไม้ / มัทฉะ
-test('5.3 มัทฉะลาเต้เย็น นมโอ๊ต หวานน้อย เข้มข้น → ราคา 95+15+20', () => {
+// ---------------------------------------------------------------- 2.3 น้ำผลไม้ / มัทฉะ
+test('2.3 มัทฉะลาเต้เย็น นมโอ๊ต หวานน้อย เข้มข้น → ราคา 95+15+20', () => {
   const [a] = play('juice', 'th', [{ user_text: 'มัทฉะลาเต้เย็น นมโอ๊ต หวานน้อย เข้มข้นครับ' }]);
   assert.equal(a.order_state.options.matcha_level, 'strong');
   assert.equal(a.total_price, 95 + 15 + 20);
 });
 
-test('5.3 ตอบสั้น "น้อย" ตอนถูกถามเรื่องน้ำแข็ง = น้ำแข็งน้อย (ไม่ใช่หวานน้อย)', () => {
+test('2.3 ตอบสั้น "น้อย" ตอนถูกถามเรื่องน้ำแข็ง = น้ำแข็งน้อย (ไม่ใช่หวานน้อย)', () => {
   const log = play('juice', 'th', [{ user_text: 'น้ำส้มคั้น หวานปกติ ไซส์ใหญ่ครับ' }, { user_text: 'น้อยครับ' }]);
   assert.equal(log[1].order_state.options.ice, 'less');
   assert.equal(log[1].order_state.options.sweetness, 'normal');
 });
 
-// ---------------------------------------------------------------- 5.4 ค็อกเทล / ม็อกเทล
-test('5.4 โมจิโต้มีแอลกอฮอล์ → ต้องแสดงบัตรก่อนทวนออเดอร์ (อายุ 25)', () => {
+// ---------------------------------------------------------------- 2.4 ค็อกเทล / ม็อกเทล
+test('2.4 โมจิโต้มีแอลกอฮอล์ → ต้องแสดงบัตรก่อนทวนออเดอร์ (อายุ 25)', () => {
   const log = play('bar', 'th', [
     { user_text: 'ขอโมจิโต้แบบมีแอลกอฮอล์ หวานน้อยครับ' },
     { user_text: 'นี่ครับบัตรประชาชน' },
@@ -101,7 +101,7 @@ test('5.4 โมจิโต้มีแอลกอฮอล์ → ต้อ�
   assert.equal(debrief('bar', log, 'k1').scores.goal, 100);
 });
 
-test('5.4 อายุ 18 ยื่นบัตร (การ์ด AAC) → มาร์การิต้าเปลี่ยนเป็นเวอร์จิ้นอัตโนมัติ', () => {
+test('2.4 อายุ 18 ยื่นบัตร (การ์ด AAC) → มาร์การิต้าเปลี่ยนเป็นเวอร์จิ้นอัตโนมัติ', () => {
   const log = play('bar', 'th', [
     { user_text: 'ขอมาร์การิต้าแบบมีแอลกอฮอล์ ปั่น ขอบเกลือครับ' },
     { user_selection: { show_id: true } },
@@ -112,14 +112,14 @@ test('5.4 อายุ 18 ยื่นบัตร (การ์ด AAC) → ม
   assert.match(log[1].actor_reply, /กฎหมาย/);
 });
 
-test('5.4 โกหกอายุ 25 แต่บัตรบอก 18 → โค้ชจับได้ และไม่ขายจินโทนิค', () => {
+test('2.4 โกหกอายุ 25 แต่บัตรบอก 18 → โค้ชจับได้ และไม่ขายจินโทนิค', () => {
   const log = play('bar', 'en', [{ user_text: "I'm 25, a gin and tonic with cucumber please" }, { user_text: "here's my id" }], { profile: { age: 18 } });
   assert.equal(log[0].coach.flags.lied, true);
   assert.equal(log[1].order_state.item, null);
   assert.equal(log[1].order_state.id_status, 'refused');
 });
 
-test('5.4 ม็อกเทลไม่ต้องตรวจบัตร และ debrief ภารกิจคนขับรถได้คะแนนความรับผิดชอบเต็ม', () => {
+test('2.4 ม็อกเทลไม่ต้องตรวจบัตร และ debrief ภารกิจคนขับรถได้คะแนนความรับผิดชอบเต็ม', () => {
   const log = play('bar', 'th', [{ user_text: 'อัญชันมะนาวโซดา หวานน้อย น้ำแข็งน้อย ไม่รับหลอดครับ' }, { user_text: 'ใช่ครับ' }], { profile: { age: 30, driving: true } });
   assert.ok(log[1].order_state.is_complete);
   const d = debrief('bar', log, 'k3');

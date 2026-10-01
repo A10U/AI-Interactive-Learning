@@ -1,4 +1,4 @@
-// Orchestrator Backend (Chapter 5): เสิร์ฟหน้าเว็บ + รับ Multimodal Payload แล้วส่งให้ engine (Offline หรือ Claude)
+// Orchestrator Backend (Chapter 2): เสิร์ฟหน้าเว็บ + รับ Multimodal Payload แล้วส่งให้ engine (Offline หรือ Claude)
 // + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน, AI เป็นลูกค้า): /api/customer/start, /api/customer/turn
 // + ตัวช่วย (Assist Bot) เมื่อผู้เรียนติด: /api/assist
 // รัน: node server.js  แล้วเปิด http://localhost:3000
@@ -131,7 +131,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('\n🥐  AI Interactive Learning — Chapter 5: เบเกอรี · อาหารนานาชาติ · น้ำผลไม้ & มัทฉะ · ค็อกเทล & ม็อกเทล');
+  console.log('\n🥐  AI Interactive Learning — Chapter 2: เบเกอรี · อาหารนานาชาติ · น้ำผลไม้ & มัทฉะ · ค็อกเทล & ม็อกเทล');
   console.log(`   เปิดเบราว์เซอร์ (Chrome/Edge): http://localhost:${PORT}`);
   console.log(`   Engine: ${llm ? `Claude (${process.env.CLAUDE_MODEL || 'claude-opus-5'})` : 'Offline rule-based (ไม่ต้องใช้ API key)'}\n`);
 });

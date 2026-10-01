@@ -1,8 +1,8 @@
-// Front-End (Chapter 5): Multimodal Input (พูด / พิมพ์ / ชี้ / ติ๊กตัวเลือก / การ์ด AAC) → Context Aggregator → /api/turn
+// Front-End (Chapter 2): Multimodal Input (พูด / พิมพ์ / ชี้ / ติ๊กตัวเลือก / การ์ด AAC) → Context Aggregator → /api/turn
 // + โหมดสลับบทบาท: ผู้เรียนเป็นพนักงาน, AI เป็นลูกค้า → /api/customer/*
 const I18N = {
   th: {
-    title: 'Specialty Ordering — บทที่ 5', subtitle: 'ฝึกสั่ง/ขาย: เบเกอรี · อาหารนานาชาติ · น้ำผลไม้ & มัทฉะ · ค็อกเทล & ม็อกเทล',
+    title: 'Specialty Ordering — บทที่ 2', subtitle: 'ฝึกสั่ง/ขาย: เบเกอรี · อาหารนานาชาติ · น้ำผลไม้ & มัทฉะ · ค็อกเทล & ม็อกเทล',
     mode: 'โหมด', modeFree: 'อิสระ', modeMission: 'ภารกิจ', modeStaff: '🔄 เป็นพนักงาน (สลับบทบาท)',
     noise: 'เสียงในร้าน', quiet: 'เงียบ', medium: 'ปานกลาง', loud: 'ดังมาก', tts: 'อ่านออกเสียง',
     missionTag: '🎯 ภารกิจของคุณ', staffTag: '🔄 โหมดสลับบทบาท: คุณคือพนักงาน', staffTitle: (s) => `รับออเดอร์ในฐานะ${s}`,
@@ -40,7 +40,7 @@ const I18N = {
     d: { title: 'สรุปผลการสั่ง', titleStaff: 'สรุปผลการขาย (คุณเป็นพนักงาน)', overall: 'คะแนนรวม', goal: 'สำเร็จตามเป้าหมาย', goalStaff: 'ออเดอร์ถูกต้อง', efficiency: 'ประสิทธิภาพ', politeness: 'ความสุภาพ', clarity: 'ความชัดเจน', price: 'คิดราคา', safety: 'ความปลอดภัย/รับผิดชอบ', strengths: 'จุดเด่น', improve: 'สิ่งที่ควรพัฒนา', yourOrder: 'ออเดอร์ของคุณ', customerOrder: 'ออเดอร์จริงของลูกค้า', mission: 'ภารกิจ', checks: 'ตรวจตามภารกิจ', none: '—' },
   },
   en: {
-    title: 'Specialty Ordering — Chapter 5', subtitle: 'Order & serve: bakery · international food · juice & matcha · cocktails & mocktails',
+    title: 'Specialty Ordering — Chapter 2', subtitle: 'Order & serve: bakery · international food · juice & matcha · cocktails & mocktails',
     mode: 'Mode', modeFree: 'Free play', modeMission: 'Mission', modeStaff: '🔄 Be the staff (role swap)',
     noise: 'Noise', quiet: 'Quiet', medium: 'Medium', loud: 'Loud', tts: 'Read aloud',
     missionTag: '🎯 Your mission', staffTag: '🔄 Role swap: you are the staff', staffTitle: (s) => `Take the order as the ${s.toLowerCase()}`,
@@ -88,8 +88,8 @@ const store = {
 
 let CFG = null;
 const S = {
-  lang: store.get('ch5.lang', 'th'),
-  scId: store.get('ch5.scenario', 'bakery'),
+  lang: store.get('ch2.lang', 'th'),
+  scId: store.get('ch2.scenario', 'bakery'),
   mode: 'free',
   noise: 'quiet',
   tts: true,
@@ -109,7 +109,7 @@ const S = {
   assistOpen: false,  // ตัวช่วย: เปิดแผงอยู่ไหม
   assists: 0,         // จำนวนครั้งที่ใช้ตัวช่วย (แสดงในหน้าสรุปผล)
   struggle: 0,        // จำนวนเทิร์นติดกันที่ผู้เรียนติด → เสนอตัวช่วยอัตโนมัติ
-  polite: store.get('ch5.polite', 'ครับ'),
+  polite: store.get('ch2.polite', 'ครับ'),
 };
 
 const t = () => I18N[S.lang];
@@ -132,7 +132,7 @@ async function init() {
 
 function bindUi() {
   document.querySelectorAll('#langSeg button').forEach((b) =>
-    b.addEventListener('click', () => { S.lang = b.dataset.lang; store.set('ch5.lang', S.lang); applyLang(); restart(); }));
+    b.addEventListener('click', () => { S.lang = b.dataset.lang; store.set('ch2.lang', S.lang); applyLang(); restart(); }));
   $('modeSel').addEventListener('change', (e) => { S.mode = e.target.value; applyLang(); restart(); });
   $('noiseSel').addEventListener('change', (e) => { S.noise = e.target.value; });
   $('ttsChk').addEventListener('change', (e) => { S.tts = e.target.checked; if (!S.tts) window.speechSynthesis?.cancel(); });
@@ -164,7 +164,7 @@ function renderTabs() {
     `<button role="tab" data-sc="${x.id}" class="${x.id === S.scId ? 'on' : ''}" aria-selected="${x.id === S.scId}">
       <span>${x.icon}</span><span>${esc(x[S.lang])}</span><span class="code">${x.code}</span></button>`).join('');
   $('scTabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-    S.scId = b.dataset.sc; store.set('ch5.scenario', S.scId); renderTabs(); restart();
+    S.scId = b.dataset.sc; store.set('ch2.scenario', S.scId); renderTabs(); restart();
   }));
 }
 
@@ -674,7 +674,7 @@ function renderAssist(a, auto) {
   box.querySelector('.use-model')?.addEventListener('click', () => fill(a.model));
   box.querySelector('.slow')?.addEventListener('click', () => speak(a.last_line, true, 0.7));
   box.querySelectorAll('[data-polite]').forEach((b) => b.addEventListener('click', () => {
-    S.polite = b.dataset.polite; store.set('ch5.polite', S.polite); loadAssist();
+    S.polite = b.dataset.polite; store.set('ch2.polite', S.polite); loadAssist();
   }));
 }
 

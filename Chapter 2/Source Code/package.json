@@ -1,7 +1,7 @@
 {
   "name": "ai-specialty-ordering-interactive-learning",
   "version": "1.0.0",
-  "description": "AI Interactive Learning Chapter 5: เบเกอรี, อาหารนานาชาติ, น้ำผลไม้ & มัทฉะ, ค็อกเทล & ม็อกเทล + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน)",
+  "description": "AI Interactive Learning Chapter 2: เบเกอรี, อาหารนานาชาติ, น้ำผลไม้ & มัทฉะ, ค็อกเทล & ม็อกเทล + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน)",
   "type": "module",
   "main": "server.js",
   "scripts": {
