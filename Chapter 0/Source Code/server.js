@@ -1,12 +1,16 @@
 // Orchestrator Backend: เสิร์ฟหน้าเว็บ + รับ Multimodal Payload แล้วส่งให้ engine (Offline หรือ Claude)
+// + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน, AI เป็นลูกค้า): /api/customer/start, /api/customer/turn
+// + ตัวช่วย (Assist Bot) เมื่อผู้เรียนติด: /api/assist
 // รัน: node server.js  แล้วเปิด http://localhost:3000
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { processTurn, openingLine } from './src/ruleEngine.js';
+import { processTurn } from './src/ruleEngine.js';
 import { buildDebrief } from './src/debrief.js';
-import { MENU, TEMPS, SWEETNESS, SIZES, MILKS, MISSIONS } from './src/menu.js';
+import { startCustomer, customerTurn, buildStaffDebrief } from './src/customerEngine.js';
+import { buildAssist } from './src/assistEngine.js';
+import { publicConfig } from './src/publicConfig.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = fileURLToPath(new URL('./public/', import.meta.url));
@@ -58,13 +62,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      return send(res, 200, {
-        engine: llm ? 'claude' : 'offline',
-        can_set_key: !!llmModule && isLocal(req),
-        menu: MENU.map(({ keywords, ...m }) => m),
-        temps: TEMPS, sweetness: SWEETNESS, sizes: SIZES, milks: MILKS, missions: MISSIONS,
-        opening: { th: openingLine('th'), en: openingLine('en') },
-      });
+      return send(res, 200, publicConfig(llm ? 'claude' : 'offline', !!llmModule && isLocal(req)));
     }
 
     // ตั้ง/ล้าง API key จากหน้าเว็บ: เฉพาะเครื่องนี้ (localhost) และเก็บใน memory เท่านั้น ไม่เขียนลงดิสก์
@@ -107,7 +105,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/debrief') {
-      return send(res, 200, buildDebrief(await readJson(req)));
+      const body = await readJson(req);
+      return send(res, 200, body.mode === 'staff' ? buildStaffDebrief(body) : buildDebrief(body));
+    }
+
+    // ตัวช่วย (Assist Bot): บอกสถานการณ์ + คำศัพท์ + ประโยคตัวอย่าง — Offline เสมอ
+    if (req.method === 'POST' && url.pathname === '/api/assist') {
+      return send(res, 200, buildAssist(await readJson(req)));
+    }
+
+    // โหมดสลับบทบาท: ลูกค้า AI (Offline engine เสมอ)
+    if (req.method === 'POST' && url.pathname === '/api/customer/start') {
+      return send(res, 200, startCustomer(await readJson(req)));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/customer/turn') {
+      const payload = await readJson(req);
+      console.log(`[staff] ${payload.session_id} ${JSON.stringify(payload.current_turn)}`);
+      return send(res, 200, customerTurn(payload));
     }
 
     if (req.method === 'GET') {

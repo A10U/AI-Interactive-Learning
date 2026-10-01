@@ -14,7 +14,7 @@ export const MENU = [
   { id: 'thai_tea',   th: 'ชาไทย',      en: 'Thai Milk Tea',   emoji: '🧡', category: 'tea',    price: 50, temps: ['hot', 'iced', 'frappe'],
     keywords: ['ชาไทย', 'ชาเย็น', 'ชานมเย็น', 'ชาส้ม', 'thai tea', 'thai milk tea'] },
   { id: 'green_tea',  th: 'ชาเขียวนม',  en: 'Green Milk Tea',  emoji: '🍵', category: 'tea',    price: 55, temps: ['hot', 'iced', 'frappe'],
-    keywords: ['ชาเขียว', 'มัทฉะ', 'มัชฉะ', 'matcha', 'green tea'] },
+    keywords: ['ชาเขียว', 'มัทฉะ', 'มัชฉะ', 'matcha', 'green tea', 'green milk tea'] },
   { id: 'cocoa',      th: 'โกโก้',      en: 'Cocoa',           emoji: '🍪', category: 'other',  price: 50, temps: ['hot', 'iced', 'frappe'],
     keywords: ['โกโก้', 'โกโก', 'ช็อกโกแลต', 'ช็อคโกแลต', 'cocoa', 'hot chocolate', 'chocolate'] },
 ];

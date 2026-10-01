@@ -22,18 +22,39 @@ function findItem(t) {
   return best?.id || null;
 }
 
+// คีย์เวิร์ดของแต่ละตัวเลือก: sub = คำที่ค้นแบบ substring (ไทย/วลี), words = คำอังกฤษที่ต้องเป็นคำเต็ม
+const TEMP_KW = {
+  frappe: { sub: ['ปั่น', 'frappe', 'frappé', 'blended', 'smoothie', 'สมูทตี้'] },
+  iced:   { sub: ['เย็น', 'ไอซ์', 'น้ำแข็ง'], words: ['iced', 'ice', 'cold'] },
+  hot:    { sub: ['ร้อน', 'อุ่น'], words: ['hot', 'warm'] },
+};
+const SWEET_KW = {
+  none:   { sub: ['ไม่หวาน', 'หวาน 0', 'หวาน0', 'หวานศูนย์', 'ไม่ใส่น้ำตาล', 'no sugar', 'unsweetened', 'sugar free', 'sugar-free', 'without sugar', 'not sweet'] },
+  less:   { sub: ['หวานน้อย', 'หวาน 25', 'หวาน 50', 'หวานครึ่ง', 'หวานนิด', 'less sweet', 'less sugar', 'half sweet', 'half sugar', 'little sugar', 'a bit sweet', 'slightly sweet'] },
+  extra:  { sub: ['หวานมาก', 'หวานๆ', 'หวาน ๆ', 'หวานเพิ่ม', 'หวานจัด', 'extra sweet', 'extra sugar', 'more sugar', 'very sweet', 'sweeter'] },
+  normal: { sub: ['หวานปกติ', 'หวานกลาง', 'หวาน 100', 'หวานธรรมดา', 'normal sweet', 'regular sweet', 'normal sugar', 'regular sugar', 'standard sweet'] },
+};
+const SIZE_KW = {
+  large:   { sub: ['ใหญ่', 'ไซส์แอล', '22 ออนซ์', '22 oz'], words: ['large', 'big', 'grande', 'venti'] },
+  regular: { sub: ['ไซส์ปกติ', 'ขนาดปกติ', 'แก้วปกติ', 'ไซส์กลาง', 'ไซส์เล็ก', 'แก้วเล็ก', 'เล็ก', '16 ออนซ์', '16 oz', 'regular size', 'normal size'], words: ['medium', 'small', 'tall'] },
+};
+const MILK_KW = {
+  oat:   { sub: ['โอ๊ต', 'โอ๊ท', 'โอ้ต', 'โอต', 'oat'] },
+  soy:   { sub: ['ถั่วเหลือง', 'โซย่า', 'soy'] },
+  dairy: { sub: ['นมวัว', 'นมสด', 'dairy', 'whole milk', 'fresh milk'] },
+};
+// "แพ้นมวัว / ไม่ใส่นมวัว / no dairy" = ปฏิเสธนมวัว ไม่ใช่การเลือกนมวัว
+const NO_DAIRY = ['แพ้', 'allerg', 'no dairy', 'ไม่ใส่นม', 'ไม่ใช้นม', 'แทนนม', 'dairy-free', 'dairy free', 'non-dairy', 'without dairy', "won't use dairy", 'instead of dairy'];
+const kwHit = (t, kw) => has(t, kw.sub || []) || hasWord(t, kw.words || []);
+const firstHit = (t, table) => Object.keys(table).find((k) => kwHit(t, table[k])) || null;
+
 function findTemperature(t) {
-  if (has(t, ['ปั่น', 'frappe', 'frappé', 'blended', 'smoothie', 'สมูทตี้'])) return 'frappe';
-  if (has(t, ['เย็น', 'ไอซ์', 'น้ำแข็ง']) || hasWord(t, ['iced', 'ice', 'cold'])) return 'iced';
-  if (has(t, ['ร้อน', 'อุ่น']) || hasWord(t, ['hot', 'warm'])) return 'hot';
-  return null;
+  return firstHit(t, TEMP_KW);
 }
 
 function findSweetness(t, pending) {
-  if (has(t, ['ไม่หวาน', 'หวาน 0', 'หวาน0', 'หวานศูนย์', 'ไม่ใส่น้ำตาล', 'no sugar', 'unsweetened', 'sugar free', 'sugar-free', 'without sugar', 'not sweet'])) return 'none';
-  if (has(t, ['หวานน้อย', 'หวาน 25', 'หวาน 50', 'หวานครึ่ง', 'หวานนิด', 'less sweet', 'less sugar', 'half sweet', 'half sugar', 'little sugar', 'a bit sweet', 'slightly sweet'])) return 'less';
-  if (has(t, ['หวานมาก', 'หวานๆ', 'หวาน ๆ', 'หวานเพิ่ม', 'หวานจัด', 'extra sweet', 'extra sugar', 'more sugar', 'very sweet', 'sweeter'])) return 'extra';
-  if (has(t, ['หวานปกติ', 'หวานกลาง', 'หวาน 100', 'หวานธรรมดา', 'normal sweet', 'regular sweet', 'normal sugar', 'regular sugar', 'standard sweet'])) return 'normal';
+  const v = firstHit(t, SWEET_KW);
+  if (v) return v;
   if (pending === 'sweetness') {
     if (has(t, ['น้อย', 'นิดเดียว', 'ครึ่ง']) || hasWord(t, ['less', 'half', 'little'])) return 'less';
     if (has(t, ['มาก', 'เยอะ', 'เพิ่ม']) || hasWord(t, ['extra', 'more', 'very'])) return 'extra';
@@ -46,19 +67,29 @@ function findSweetness(t, pending) {
 function findSize(t, pending) {
   // ตัวอักษรเดี่ยว L/M ตีความเป็นไซส์เฉพาะตอนถูกถามไซส์ หรือพูดว่า "size L" (กันชนกับ I'm, it's)
   const letter = pending === 'size' || /size ?[lm]\b|ไซส์ ?[lm]/.test(t);
-  if (has(t, ['ใหญ่', 'ไซส์แอล', '22 ออนซ์', '22 oz']) || hasWord(t, ['large', 'big', 'grande', 'venti']) || (letter && word(t, 'l'))) return 'large';
-  if (has(t, ['ไซส์ปกติ', 'ขนาดปกติ', 'แก้วปกติ', 'ไซส์กลาง', 'ไซส์เล็ก', 'แก้วเล็ก', 'เล็ก', '16 ออนซ์', '16 oz', 'regular size', 'normal size'])
-    || hasWord(t, ['medium', 'small', 'tall']) || (letter && word(t, 'm'))) return 'regular';
+  if (kwHit(t, SIZE_KW.large) || (letter && word(t, 'l'))) return 'large';
+  if (kwHit(t, SIZE_KW.regular) || (letter && word(t, 'm'))) return 'regular';
   // "ปกติ / regular" เฉยๆ ตีความเป็นไซส์ได้เมื่อบาริสต้ากำลังถามไซส์อยู่ (ไม่ใช่ถามความหวาน)
   if (pending === 'size' && (has(t, ['ปกติ', 'ธรรมดา', 'กลาง']) || hasWord(t, ['regular', 'normal']))) return 'regular';
   return null;
 }
 
 function findMilk(t) {
-  if (has(t, ['โอ๊ต', 'โอ๊ท', 'โอ้ต', 'โอต', 'oat'])) return 'oat';
-  if (has(t, ['ถั่วเหลือง', 'โซย่า', 'soy'])) return 'soy';
-  if (!has(t, ['แพ้', 'allerg', 'no dairy']) && (has(t, ['นมวัว', 'นมสด', 'dairy', 'whole milk', 'fresh milk']))) return 'dairy';
+  if (kwHit(t, MILK_KW.oat)) return 'oat';
+  if (kwHit(t, MILK_KW.soy)) return 'soy';
+  if (!has(t, NO_DAIRY) && kwHit(t, MILK_KW.dairy)) return 'dairy';
   return null;
+}
+
+// ทุกค่าที่ถูกเอ่ยถึงในประโยค (ใช้ในโหมดพนักงาน: แยก "คำถามให้เลือก" เช่น "ร้อนหรือเย็น" ออกจาก "การทวนออเดอร์")
+function findMentions(t) {
+  // ตัดชื่อเมนูออกก่อน กันคำในชื่อเมนูชนกับตัวเลือก เช่น "ชาเย็น" (= ชาไทย) หรือ "hot chocolate"
+  let rest = t;
+  const kws = MENU.flatMap((m) => m.keywords).sort((a, b) => b.length - a.length);
+  for (const kw of kws) rest = rest.split(kw).join(' ');
+  const all = (table) => Object.keys(table).filter((k) => kwHit(rest, table[k]));
+  const milk = all(MILK_KW).filter((k) => k !== 'dairy' || !has(rest, NO_DAIRY));
+  return { temperature: all(TEMP_KW), sweetness: all(SWEET_KW), size: all(SIZE_KW), milk };
 }
 
 function findQuantity(t) {
@@ -103,6 +134,7 @@ export function parseUtterance(raw, pending = null) {
     milk: findMilk(t),
     allergy: has(t, ['แพ้นม', 'แพ้แลคโตส', 'allergic', 'allergy', 'lactose', 'no dairy', 'dairy free', 'dairy-free']),
     quantity: findQuantity(t),
+    mentions: findMentions(t),
     greeting: has(t, ['สวัสดี', 'หวัดดี']) || hasWord(t, ['hello', 'hi', 'hey', 'good morning']),
     thanks: has(t, ['ขอบคุณ', 'ขอบใจ', 'thank']),
     askMenu: has(t, ['มีอะไรบ้าง', 'เมนู', 'แนะนำ', 'อะไรอร่อย', 'ขายอะไร', 'menu', 'recommend', 'what do you have', 'what do you serve']),
