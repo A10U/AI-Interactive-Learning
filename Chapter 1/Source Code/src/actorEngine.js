@@ -4,7 +4,7 @@ import { GROUPS, INGREDIENTS, getScenario } from './scenarios.js';
 import {
   emptyOrder, normalizeOrder, itemById, setItem, missingSlots, allowedValues, offerValues, applicableModifiers,
   removableOf, modifierDef, valueDef, totalPrice, prepMinutes, itemLabel, describeOrder, cardName, enLower,
-  allergyConflicts, safeItems, allergenInItem, allergenName, listText,
+  allergyConflicts, safeItems, allergenInItem, allergenName, listText, valueExtra, orderHasAlcohol, itemMayHaveAlcohol,
 } from './order.js';
 import { aggregate } from './aggregator.js';
 import { coachTurn } from './coachEngine.js';
@@ -24,10 +24,37 @@ const L = {
       size: (n, o) => `รับ${o}ดีครับ?`,
       protein: (n, o) => `${n}รับเป็นอะไรดีครับ? มี${o}ครับ`,
       spice: (n, o) => `ความเผ็ดเอาระดับไหนดีครับ? (${o})`,
+      warm: (n) => `${n}ต้องการให้อุ่นไหมครับ?`,
+      dining: () => 'ทานที่ร้านหรือกลับบ้านครับ?',
+      slice: (n, o) => `${n}รับ${o}ดีครับ?`,
+      slicing: (n) => `${n}ต้องการให้สไลซ์เป็นแผ่นไหมครับ?`,
+      broth: (n, o) => `น้ำซุปรับเป็น${o}ดีครับ?`,
+      firmness: (n, o) => `เส้นรับแบบไหนดีครับ? (${o})`,
+      doneness: (n, o) => `${n}รับความสุกระดับไหนดีครับ? (${o})`,
+      pizza_size: (n, o) => `รับถาดขนาดไหนดีครับ? (${o})`,
+      crust: (n, o) => `แป้งรับแบบไหนดีครับ? (${o})`,
+      noodle_type: (n, o) => `รับเป็นเส้นอะไรดีครับ? (${o})`,
+      side: (n, o) => `เครื่องเคียงรับเป็น${o}ดีครับ?`,
+      steak_sauce: (n, o) => `ซอสรับเป็น${o}ดีครับ?`,
+      carb: (n, o) => `ทานคู่กับ${o}ดีครับ?`,
+      ice: (n, o) => `น้ำแข็งรับแบบไหนดีครับ? (${o})`,
+      base: (n, o) => `สมูทตี้ใช้เบสอะไรดีครับ? (${o})`,
+      matcha_level: (n, o) => `ความเข้มของมัทฉะรับแบบไหนดีครับ? (${o})`,
+      alcohol: (n, o) => `${n}รับแบบมีแอลกอฮอล์ หรือแบบเวอร์จิ้น (ไม่มีแอลกอฮอล์) ดีครับ?`,
+      rim: (n, o) => `ขอบแก้วรับเป็น${o}ดีครับ?`,
+      serve: (n, o) => `รับแบบ${o}ดีครับ?`,
+      garnish: (n, o) => `ตกแต่งด้วย${o}ดีครับ?`,
       egg: (n, o) => `รับไข่แบบไหนดีครับ? (${o})`,
       portion: (n, o) => `รับจาน${o}ดีครับ?`,
     },
+    askGeneric: (label, o) => `${label}รับแบบไหนดีครับ? (${o})`,
     refine: { egg: 'ไข่ดาวรับแบบสุก หรือไม่สุก (ยางมะตูม) ดีครับ?' },
+    askId: 'เครื่องดื่มนี้มีแอลกอฮอล์ ขออนุญาตดูบัตรประชาชนเพื่อยืนยันอายุหน่อยครับ (ต้องอายุ 20 ปีขึ้นไป)',
+    askIdAfterAge: 'ขอบคุณครับ ขออนุญาตดูบัตรเพื่อยืนยันด้วยนะครับ',
+    idOk: 'ขอบคุณครับ ยืนยันอายุเรียบร้อยครับ',
+    underageVirgin: (n) => `ขออภัยครับ ตามกฎหมายร้านขายเครื่องดื่มแอลกอฮอล์ให้ผู้ที่อายุต่ำกว่า 20 ปีไม่ได้ ขอทำ${n}เป็นแบบเวอร์จิ้น (ไม่มีแอลกอฮอล์) ให้แทนนะครับ`,
+    underageItem: (n, safe) => `ขออภัยครับ ตามกฎหมายร้านขาย${n}ให้ผู้ที่อายุต่ำกว่า 20 ปีไม่ได้ครับ แนะนำม็อกเทลอย่าง${safe}แทนครับ`,
+    ageNote: (a) => ` (ยืนยันอายุแล้ว ${a} ปี)`,
     generic: (label, names) => `${label}ทางร้านมี ${names} ครับ รับตัวไหนดีครับ?`,
     pointAck: (d) => `${d} ตัวนี้นะครับ`,
     ack: (d) => `ได้ครับ ${d}`,
@@ -70,10 +97,37 @@ const L = {
       size: (n, o) => `What size — ${o}?`,
       protein: (n, o) => `What would you like in your ${n} — ${o}?`,
       spice: (n, o) => `How spicy would you like it — ${o}?`,
+      warm: (n) => `Would you like me to warm up the ${n}?`,
+      dining: () => 'Is that for here or to go?',
+      slice: (n, o) => `Would you like the ${n} ${o}?`,
+      slicing: (n) => `Shall I slice the ${n} for you?`,
+      broth: (n, o) => `Which broth would you like — ${o}?`,
+      firmness: (n, o) => `How would you like your noodles — ${o}?`,
+      doneness: (n, o) => `How would you like your ${n} cooked — ${o}?`,
+      pizza_size: (n, o) => `What size pizza — ${o}?`,
+      crust: (n, o) => `Which crust would you like — ${o}?`,
+      noodle_type: (n, o) => `Which pasta would you like — ${o}?`,
+      side: (n, o) => `Which side would you like — ${o}?`,
+      steak_sauce: (n, o) => `Which sauce would you like — ${o}?`,
+      carb: (n, o) => `Would you like it with ${o}?`,
+      ice: (n, o) => `How much ice — ${o}?`,
+      base: (n, o) => `Which smoothie base — ${o}?`,
+      matcha_level: (n, o) => `How strong would you like the matcha — ${o}?`,
+      alcohol: (n) => `Would you like the ${n} with alcohol, or virgin (alcohol-free)?`,
+      rim: (n, o) => `For the rim — ${o}?`,
+      serve: (n, o) => `Would you like it ${o}?`,
+      garnish: (n, o) => `Which garnish — ${o}?`,
       egg: (n, o) => `How would you like your egg — ${o}?`,
       portion: (n, o) => `Would you like a ${o}?`,
     },
+    askGeneric: (label, o) => `Which ${label.toLowerCase()} would you like — ${o}?`,
     refine: { egg: 'How would you like your fried egg — well done or runny?' },
+    askId: 'That drink contains alcohol — may I see your ID, please? You need to be 20 or over.',
+    askIdAfterAge: 'Thanks — could I see your ID to confirm, please?',
+    idOk: "Thank you, that's all fine.",
+    underageVirgin: (n) => `I'm sorry — by law we can't serve alcohol to anyone under 20. I'll make your ${n} virgin (alcohol-free) instead.`,
+    underageItem: (n, safe) => `I'm sorry — by law we can't serve a ${n} to anyone under 20. How about a mocktail like ${safe}?`,
+    ageNote: (a) => ` (ID checked, age ${a})`,
     generic: (label, names) => `For ${label} we have ${names}. Which one would you like?`,
     pointAck: (d) => `The ${d}, this one? Sure.`,
     ack: (d) => `Sure, ${d}.`,
@@ -109,22 +163,69 @@ const L = {
   },
 };
 
-const fmtValue = (g, v, lang) => {
+const fmtValue = (item, g, v, lang) => {
   const d = valueDef(g, v);
-  return d.extra ? `${d[lang]} (+${d.extra})` : d[lang];
+  const extra = valueExtra(item, g, v);
+  return extra ? `${d[lang]} (+${extra})` : d[lang];
 };
 
-function askFor(sc, order, slot, lang, parsed) {
+export function askFor(sc, order, slot, lang, parsed = {}) {
   const S = L[lang];
   if (slot === 'item') {
     const gn = parsed.generic && sc.generic.find((g) => g.key === parsed.generic);
     if (gn) return S.generic(gn[lang], listText(sc.menu.filter(gn.filter).map((it) => cardName(it, lang)), lang));
     return sc.askItem[lang];
   }
+  if (slot === 'id_check') return order.stated_age != null ? S.askIdAfterAge : S.askId;
   const it = itemById(sc, order.item);
-  if (valueDef(slot, order.options[slot])?.partial) return S.refine[slot];
-  const opts = offerValues(it, slot, order.allergies).map((v) => fmtValue(slot, v, lang));
-  return S.ask[slot](lang === 'en' ? enLower(it.en) : it.th, orList(opts, lang));
+  if (valueDef(slot, order.options[slot])?.partial && S.refine[slot]) return S.refine[slot];
+  const opts = orList(offerValues(it, slot, order.allergies).map((v) => fmtValue(it, slot, v, lang)), lang);
+  const name = lang === 'en' ? enLower(it.en) : it.th;
+  return S.ask[slot] ? S.ask[slot](name, opts) : S.askGeneric(GROUPS[slot][lang], opts);
+}
+
+// ร้านที่พนักงานใช้ "ค่ะ" (เช่น เบเกอรี) — แปลงคำลงท้ายและสรรพนามของบทพูดภาษาไทย
+function voice(sc, lang, text) {
+  if (lang !== 'th' || sc.polite !== 'ค่ะ') return text;
+  return text.replace(/นะครับ/g, 'นะคะ').replace(/ครับ\?/g, 'คะ?').replace(/ครับ/g, 'ค่ะ').replace(/ผม/g, 'ดิฉัน');
+}
+
+// ตรวจอายุก่อนเสิร์ฟแอลกอฮอล์ (อายุ 20 ปีขึ้นไป) — บัตรแสดงอายุจริงจากโปรไฟล์ผู้เรียน ไม่ใช่อายุที่พูด
+// ใช้ทั้ง Offline engine และหลัง Claude ตอบ (ไม่พึ่ง LLM)
+export function enforceAge(sc, order, { parsed, selection, profile }, lang) {
+  if (!sc.ageCheck) return { messages: [], changed: false, idShown: false };
+  const S = L[lang];
+  const legal = sc.legalAge || 20;
+  const messages = [];
+  let changed = false;
+  if (parsed.age != null) order.stated_age = parsed.age;
+  const idShown = !!(parsed.showId || selection?.show_id);
+  if (idShown) order.id_age = profile?.age ?? 25;
+  const knownAge = order.id_age ?? (order.stated_age != null && order.stated_age < legal ? order.stated_age : null);
+  if (knownAge != null) {
+    const before = order.id_status;
+    order.id_status = knownAge >= legal ? 'verified' : 'refused';
+    if (idShown && order.id_status === 'verified' && before !== 'verified' && orderHasAlcohol(sc, order)) messages.push(S.idOk);
+  }
+  if (order.id_status === 'refused') {
+    order.modifiers = order.modifiers.filter((m) => m !== 'double_shot');
+    const item = itemById(sc, order.item);
+    if (item && orderHasAlcohol(sc, order)) {
+      const name = lang === 'en' ? enLower(item.en) : item.th;
+      if (item.groups.includes('alcohol')) {
+        order.options.alcohol = 'virgin';
+        messages.push(S.underageVirgin(name));
+      } else {
+        const mocktails = sc.menu.filter((it) => !itemMayHaveAlcohol(it)).slice(0, 2).map((it) => cardName(it, lang));
+        messages.push(S.underageItem(name, orList(mocktails, lang)));
+        order.item = null;
+        order.options = {};
+        order.modifiers = order.modifiers.filter((m) => m === 'no_straw');
+      }
+      changed = true;
+    }
+  }
+  return { messages, changed, idShown };
 }
 
 const nameOf = (sc, id, lang) => { const it = itemById(sc, id); return it ? cardName(it, lang) : id; };
@@ -237,12 +338,12 @@ export function processTurn(payload, { rng = Math.random } = {}) {
   const respond = (reply, order, actionState, extra = {}) => {
     order.is_complete = order.phase === 'complete';
     return {
-      actor_reply: reply,
+      actor_reply: voice(sc, lang, reply),
       action_state: actionState,
       order_state: order,
       total_price: totalPrice(sc, order),
       prep_minutes: order.is_complete ? prepMinutes(sc, order) : null,
-      coach: coachTurn({ lang, sc, channels, parsed, order, prev, askedSlot, profile, ...extra }),
+      coach: coachTurn({ lang, sc, channels, parsed, selection, order, prev, askedSlot, profile, ...extra }),
       engine: 'offline',
     };
   };
@@ -325,6 +426,12 @@ export function processTurn(payload, { rng = Math.random } = {}) {
   }
   if (parsed.quantity && parsed.quantity !== order.quantity) { order.quantity = parsed.quantity; mark('quantity'); }
 
+  // 4.5) ตรวจอายุก่อนเสิร์ฟแอลกอฮอล์ (เฉพาะสถานการณ์บาร์)
+  const idBefore = order.id_status;
+  const age = enforceAge(sc, order, { parsed, selection, profile }, lang);
+  pre.push(...age.messages);
+  if (order.id_status !== idBefore || age.changed) mark('id');
+
   // 5) Safety Guard + ตอบคำถามเรื่องส่วนผสม
   const notedBefore = order.safety_notes.length;
   const safety = enforceSafety(sc, order, lang);
@@ -360,25 +467,25 @@ export function processTurn(payload, { rng = Math.random } = {}) {
     const verbal = channels.speech || channels.text;
     if (channels.point && !verbal && order.item && !safety.unsafeItem) pre.push(S.pointAck(itemLabel(sc, order, lang)));
     else if (changes.some((c) => c !== 'allergy') && order.item) pre.push(S.ack(describeOrder(sc, order, lang)));
-    const informative = changed || parsed.greeting || parsed.askMenu || parsed.askPrice || parsed.thanks || answers.length > 0;
+    const informative = changed || age.idShown || parsed.age != null || parsed.greeting || parsed.askMenu || parsed.askPrice || parsed.thanks || answers.length > 0;
     const notUnderstood = !informative;
     if (notUnderstood && !parsed.generic) pre.push(S.notUnderstood);
     pre.push(askFor(sc, order, missing[0], lang, parsed));
-    const action = safety.messages.length ? 'warning' : notUnderstood ? 'confused' : channels.point ? 'looking' : 'asking';
+    const action = safety.messages.length || age.messages.length ? 'warning' : notUnderstood ? 'confused' : channels.point ? 'looking' : 'asking';
     return respond(say(pre), order, action, { changes, notUnderstood });
   }
 
   // ข้อมูลครบ → ทวนออเดอร์ (Actor ทวน, ผู้เรียนยืนยันหรือทวนซ้ำ)
   order.phase = 'confirming';
-  const note = order.allergies.length ? S.readbackAllergy(listText(order.allergies.map((a) => allergenName(a, lang)), lang)) : '';
-  pre.push(S.readback(describeOrder(sc, order, lang), note, totalPrice(sc, order)));
-  return respond(say(pre), order, safety.messages.length ? 'warning' : 'confirming', { changes });
+  pre.push(readbackLine(sc, order, lang));
+  return respond(say(pre), order, safety.messages.length || age.messages.length ? 'warning' : 'confirming', { changes });
 }
 
 // ประโยคทวนออเดอร์มาตรฐาน (Claude engine ใช้เมื่อ Guard ต้องบังคับให้ทวนก่อนปิดออเดอร์)
 export function readbackLine(sc, order, lang) {
   const S = L[lang];
-  const note = order.allergies.length ? S.readbackAllergy(listText(order.allergies.map((a) => allergenName(a, lang)), lang)) : '';
+  let note = order.allergies.length ? S.readbackAllergy(listText(order.allergies.map((a) => allergenName(a, lang)), lang)) : '';
+  if (orderHasAlcohol(sc, order) && order.id_status === 'verified') note += S.ageNote(order.id_age);
   return S.readback(describeOrder(sc, order, lang), note, totalPrice(sc, order));
 }
 

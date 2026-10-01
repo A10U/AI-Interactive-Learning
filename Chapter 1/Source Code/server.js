@@ -1,4 +1,6 @@
 // Orchestrator Backend (Chapter 1): เสิร์ฟหน้าเว็บ + รับ Multimodal Payload แล้วส่งให้ engine (Offline หรือ Claude)
+// + โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน, AI เป็นลูกค้า): /api/customer/start, /api/customer/turn
+// + ตัวช่วย (Assist Bot) เมื่อผู้เรียนติด: /api/assist
 // รัน: node server.js  แล้วเปิด http://localhost:3000
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -6,6 +8,8 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { processTurn } from './src/actorEngine.js';
 import { buildDebrief } from './src/debrief.js';
+import { startCustomer, customerTurn, buildStaffDebrief } from './src/customerEngine.js';
+import { buildAssist } from './src/assistEngine.js';
 import { publicConfig } from './src/publicConfig.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -60,7 +64,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/debrief') {
-      return send(res, 200, buildDebrief(await readJson(req)));
+      const body = await readJson(req);
+      return send(res, 200, body.mode === 'staff' ? buildStaffDebrief(body) : buildDebrief(body));
+    }
+
+    // ตัวช่วย (Assist Bot): บอกสถานการณ์ + คำศัพท์ + ประโยคตัวอย่าง — Offline เสมอ
+    if (req.method === 'POST' && url.pathname === '/api/assist') {
+      return send(res, 200, buildAssist(await readJson(req)));
+    }
+
+    // โหมดสลับบทบาท: ลูกค้า AI (Offline engine)
+    if (req.method === 'POST' && url.pathname === '/api/customer/start') {
+      return send(res, 200, startCustomer(await readJson(req)));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/customer/turn') {
+      const payload = await readJson(req);
+      console.log(`[staff] ${payload.scenario} ${JSON.stringify(payload.current_turn)}`);
+      return send(res, 200, customerTurn(payload));
     }
 
     if (req.method === 'GET') {
@@ -80,7 +100,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('\n🍽️  AI Interactive Learning — Chapter 1: การสั่งอาหารทั่วไป');
+  console.log('\n🍽️  AI Interactive Learning — Chapter 1: การสั่งอาหารทั่วไป (คาเฟ่ · ร้านอาหารตามสั่ง · แพ้อาหาร)');
   console.log(`   เปิดเบราว์เซอร์ (Chrome/Edge): http://localhost:${PORT}`);
   console.log(`   Engine: ${llm ? `Claude (${process.env.CLAUDE_MODEL || 'claude-opus-5'})` : 'Offline rule-based (ไม่ต้องใช้ API key)'}\n`);
 });

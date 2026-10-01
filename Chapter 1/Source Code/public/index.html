@@ -26,6 +26,7 @@
         <select id="modeSel">
           <option value="free" data-i18n="modeFree"></option>
           <option value="mission" data-i18n="modeMission"></option>
+          <option value="staff" data-i18n="modeStaff"></option>
         </select>
       </label>
       <label class="ctl"><span data-i18n="noise"></span>
@@ -66,15 +67,18 @@
       <div class="chat" id="chat" aria-live="polite"></div>
 
       <div class="composer">
+        <section class="assist" id="assistBox" hidden aria-live="polite"></section>
         <div class="staged" id="staged" hidden>
           <div class="chips" id="stagedChips"></div>
           <button class="x" id="clearStaged" data-i18n-title="clear" aria-label="clear">✕</button>
         </div>
         <div class="input-row">
+          <button class="assist-btn" id="assistBtn"><span>💡</span><span data-i18n="assistBtn"></span></button>
           <button class="mic" id="micBtn" title="">🎤</button>
           <input id="textInput" autocomplete="off" />
           <button class="send" id="sendBtn" data-i18n="send"></button>
         </div>
+        <div class="phrases" id="phrases" hidden></div>
         <div class="hint" id="hint"></div>
       </div>
     </section>
@@ -87,7 +91,7 @@
         <div class="menu" id="menu"></div>
       </section>
 
-      <section class="panel custom">
+      <section class="panel custom" id="customBox">
         <h2 data-i18n="customize"></h2>
         <div id="custom"></div>
       </section>
@@ -99,7 +103,7 @@
       </details>
 
       <section class="panel ticket">
-        <h2 data-i18n="ticket"></h2>
+        <h2 id="ticketTitle"></h2>
         <div class="phase" id="phase"></div>
         <ul class="slots" id="slots"></ul>
         <div class="tags" id="ticketTags"></div>

@@ -5,9 +5,10 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GROUPS, INGREDIENTS, ALLERGENS, MODIFIERS, getScenario } from './scenarios.js';
 import {
   normalizeOrder, itemById, setItem, applicableModifiers, allModifierIds, scenarioGroups, missingSlots,
-  totalPrice, prepMinutes, modifierDef, removableOf, cardPrice, cardName,
+  totalPrice, prepMinutes, modifierDef, removableOf, cardPrice, cardName, valueExtra,
 } from './order.js';
-import { enforceSafety, readbackLine } from './actorEngine.js';
+import { enforceSafety, enforceAge, readbackLine } from './actorEngine.js';
+import { aggregate } from './aggregator.js';
 import { RATING_LABELS, allergyRisk } from './coachEngine.js';
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5';
@@ -65,7 +66,7 @@ function menuText(sc) {
   const lines = sc.menu.map((it) => {
     const opts = it.groups.map((g) => {
       const vals = it.values?.[g] || Object.keys(GROUPS[g].values);
-      return `${g}${GROUPS[g].required ? '*' : ''}=[${vals.map((v) => `${v}${GROUPS[g].values[v].extra ? ` +${GROUPS[g].values[v].extra}` : ''}`).join(', ')}]`;
+      return `${g}${GROUPS[g].required ? '*' : ''}=[${vals.map((v) => `${v}${valueExtra(it, g, v) ? ` +${valueExtra(it, g, v)}` : ''}`).join(', ')}]`;
     }).join('; ');
     const rem = removableOf(sc, it).map((i) => `${i}${INGREDIENTS[i].allergen ? `(${INGREDIENTS[i].allergen})` : ''}`).join(', ');
     const fixed = (it.fixed || []).map((i) => `${i}${INGREDIENTS[i].allergen ? `(${INGREDIENTS[i].allergen})` : ''}`).join(', ');
@@ -96,7 +97,11 @@ ${menuText(sc)}
    แจ้งยอดชำระและเวลาเตรียมอาหารโดยประมาณ ถ้าผู้เรียนขอแก้ ให้แก้แล้วทวนใหม่
 5. ความปลอดภัยเรื่องอาการแพ้ (สำคัญที่สุด): ใส่อาการแพ้ที่ผู้เรียนแจ้งใน allergies; ถ้าเมนูมีวัตถุดิบที่แพ้และเอาออกได้ ให้เพิ่ม no_<ingredient> และบอกลูกค้า;
    ถ้าเอาออกไม่ได้ ให้ปฏิเสธอย่างสุภาพและแนะนำเมนูที่ปลอดภัย; ตอบคำถามเรื่องส่วนผสมตามข้อมูลเมนูเท่านั้น ห้ามแต่งเพิ่ม
-6. order_state: ส่งสถานะล่าสุดทั้งหมด (คงค่าเดิมที่ไม่เปลี่ยน, option ที่ยังไม่รู้ = null) — action_state ใช้ warning เมื่อเตือนเรื่องอาการแพ้`;
+6. order_state: ส่งสถานะล่าสุดทั้งหมด (คงค่าเดิมที่ไม่เปลี่ยน, option ที่ยังไม่รู้ = null) — action_state ใช้ warning เมื่อเตือนเรื่องอาการแพ้${sc.ageCheck ? `
+7. แอลกอฮอล์: ขายให้ผู้อายุ ${sc.legalAge || 20} ปีขึ้นไปเท่านั้น ถ้าออเดอร์มีแอลกอฮอล์และ order_state.id_status ยังไม่เป็น "verified" ต้องขอดูบัตรก่อน
+   (ห้ามตัดสินอายุเอง — ระบบตรวจบัตรและแจ้งผลใน id_status; ถ้าเป็น "refused" ให้เสนอแบบเวอร์จิ้นหรือม็อกเทลอย่างสุภาพ)
+   user_selection.show_id = true หมายถึงลูกค้ายื่นบัตรให้ดู` : ''}${sc.polite === 'ค่ะ' ? `
+8. คุณเป็นพนักงานผู้หญิง ภาษาไทยใช้ "ค่ะ/คะ"` : ''}`;
 }
 
 function coachSystem(sc) {
@@ -104,6 +109,7 @@ function coachSystem(sc) {
 ประเมินเฉพาะเทิร์นล่าสุด (current_turn) โดยดู order_state ก่อนหน้าและ dialogue_history ประกอบ เขียน notes/tip เป็นภาษาตาม field "language"
 - rating: excellent (ชัดเจน/ใช้หลายช่องทางช่วยกันดี/แจ้งอาการแพ้หรือทวนออเดอร์ได้ดี), good (สำเร็จบางส่วน หรือชี้/เลือกอย่างเดียวแบบ AAC), improve (กำกวม ขัดแย้ง หรือเสี่ยงต่อความปลอดภัย)
 - วิเคราะห์ประสิทธิภาพของช่องทางที่เลือกใช้ (ชี้อย่างเดียว vs พูดประกอบการชี้ vs ติ๊กตัวเลือก)
+- learner_profile.age / driving (ถ้ามี) คืออายุจริง / ต้องขับรถ — ถ้าผู้เรียนโกหกอายุ หรือสั่งแอลกอฮอล์ทั้งที่อายุไม่ถึง 20 หรือต้องขับรถ ให้ rating = improve
 - learner_profile.allergies คืออาการแพ้จริงของผู้เรียน (พนักงานไม่รู้จนกว่าผู้เรียนจะบอก) ถ้าผู้เรียนสั่งของที่แพ้โดยยังไม่ได้แจ้ง ให้ rating = improve และเตือนใน tip
 - notes: สิ่งที่สังเกตได้ 1-2 ข้อ, tip: คำแนะนำที่ดีกว่า 1 ข้อ
 - politeness 0-100 (null ถ้าไม่ได้พูด/พิมพ์เลย), clarity 0-100
@@ -156,8 +162,12 @@ export async function processTurnLLM(payload) {
   let reply = actor.actor_reply;
   let actionState = actor.action_state;
   const guard = enforceSafety(sc, order, lang);
-  if (guard.messages.length) {
-    reply = `${guard.messages.join(' ')} ${reply}`;
+  // Age Guard: ใช้ตัวแยกความหมายแบบ Offline อ่านว่าลูกค้าบอกอายุ/ยื่นบัตรหรือไม่ แล้วตัดสินจากอายุจริง (ไม่พึ่ง LLM)
+  const { parsed, selection } = aggregate(payload, sc, null);
+  const ageGuard = enforceAge(sc, order, { parsed, selection, profile: learner_profile }, lang);
+  const guardMsgs = [...guard.messages, ...ageGuard.messages.filter((m) => !reply.includes(m))];
+  if (guard.messages.length || ageGuard.changed) {
+    reply = `${guardMsgs.join(' ')} ${reply}`;
     actionState = 'warning';
   }
 
@@ -165,7 +175,7 @@ export async function processTurnLLM(payload) {
   const missing = missingSlots(sc, order);
   let phase = out.phase;
   if (missing.length) phase = 'ordering';
-  else if (phase === 'complete' && (prev.phase !== 'confirming' || guard.changed)) {
+  else if (phase === 'complete' && (prev.phase !== 'confirming' || guard.changed || ageGuard.changed)) {
     phase = 'confirming';
     reply = `${reply} ${readbackLine(sc, order, lang)}`;
     actionState = 'confirming';
@@ -186,7 +196,7 @@ export async function processTurnLLM(payload) {
       ...coachOut,
       rating: risky.length ? 'improve' : coachOut.rating,
       label: RATING_LABELS[lang][risky.length ? 'improve' : coachOut.rating],
-      flags: { recap: coachOut.recap, allergy_declared: declaredNow, safety_asked: coachOut.safety_asked, risk: risky },
+      flags: { recap: coachOut.recap, allergy_declared: declaredNow, safety_asked: coachOut.safety_asked, risk: risky, id_shown: ageGuard.idShown },
     },
     engine: `claude (${MODEL})`,
   };

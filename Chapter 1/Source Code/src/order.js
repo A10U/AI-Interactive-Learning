@@ -1,9 +1,13 @@
-// Order State: Slot Filling + ราคา + การตรวจสารก่อภูมิแพ้ (ใช้ร่วมกันทั้ง Offline engine, Claude engine และ Debrief)
+// Order State: Slot Filling + ราคา + การตรวจสารก่อภูมิแพ้ + การตรวจอายุ (ใช้ร่วมกันทั้ง Offline engine, Claude engine และ Debrief)
 import { GROUPS, INGREDIENTS, ALLERGENS, MODIFIERS } from './scenarios.js';
 
 // phase: ordering (กำลังเก็บข้อมูล) → confirming (พนักงานทวนออเดอร์ รอลูกค้ายืนยัน) → complete
+// id_status: null | verified (อายุถึง) | refused (อายุไม่ถึง) — ใช้เฉพาะสถานการณ์ที่มีแอลกอฮอล์
 export function emptyOrder() {
-  return { item: null, options: {}, modifiers: [], allergies: [], quantity: 1, phase: 'ordering', safety_notes: [], is_complete: false };
+  return {
+    item: null, options: {}, modifiers: [], allergies: [], quantity: 1, phase: 'ordering', safety_notes: [],
+    stated_age: null, id_age: null, id_status: null, is_complete: false,
+  };
 }
 
 export function normalizeOrder(o) {
@@ -53,15 +57,29 @@ export function allowedValues(item, group) {
 
 export const valueDef = (group, value) => GROUPS[group]?.values?.[value] || null;
 
+// ค่าหนึ่งอาจมีสารก่อภูมิแพ้หลายตัว เช่น แป้งนาน = กลูเตน + นม
+export const valueAllergens = (def) => (def ? def.allergens || (def.allergen ? [def.allergen] : []) : []);
+
+// ราคาบวกเพิ่มของตัวเลือก (บางเมนูกำหนดเอง เช่น เค้กทั้งปอนด์)
+export const valueExtra = (item, group, value) => item?.extras?.[group]?.[value] ?? valueDef(group, value)?.extra ?? 0;
+
 export function valueSafe(group, value, allergies = []) {
-  const a = valueDef(group, value)?.allergen;
-  return !a || !allergies.includes(a);
+  return !valueAllergens(valueDef(group, value)).some((a) => allergies.includes(a));
 }
 
 // ค่าที่พนักงานควรเสนอให้เลือก: ไม่รวมค่ากำกวม (partial) และค่าที่ลูกค้าแพ้
 export function offerValues(item, group, allergies = []) {
   return allowedValues(item, group).filter((v) => !valueDef(group, v).partial && valueSafe(group, v, allergies));
 }
+
+// ออเดอร์นี้มีแอลกอฮอล์ไหม (เมนูที่มีแอลกอฮอล์เสมอ / เลือก "แบบมีแอลกอฮอล์" / ดับเบิ้ลช็อต)
+export function orderHasAlcohol(sc, order) {
+  const item = itemById(sc, order.item);
+  if (!item) return false;
+  return !!item.alcoholic || order.options.alcohol === 'with';
+}
+
+export const itemMayHaveAlcohol = (item) => !!(item?.alcoholic || item?.groups?.includes('alcohol'));
 
 // เปลี่ยนเมนู: ล้างตัวเลือกที่ไม่รองรับ + ใส่ค่าเริ่มต้นของเมนู
 export function setItem(sc, order, id) {
@@ -81,6 +99,7 @@ export function setItem(sc, order, id) {
   order.modifiers = order.modifiers.filter((m) => ok.includes(m));
 }
 
+// ช่องที่ยังขาด — 'id_check' = ต้องตรวจบัตรก่อนเสิร์ฟแอลกอฮอล์
 export function missingSlots(sc, order) {
   const item = itemById(sc, order.item);
   if (!item) return ['item'];
@@ -89,6 +108,7 @@ export function missingSlots(sc, order) {
     const v = order.options[g];
     if (!v) { if (GROUPS[g].required) miss.push(g); } else if (valueDef(g, v)?.partial) miss.push(g);
   }
+  if (sc.ageCheck && orderHasAlcohol(sc, order) && order.id_status !== 'verified') miss.unshift('id_check');
   return miss;
 }
 
@@ -96,7 +116,7 @@ export function unitPrice(sc, order) {
   const item = itemById(sc, order.item);
   if (!item) return 0;
   let p = item.price;
-  for (const [g, v] of Object.entries(order.options)) p += valueDef(g, v)?.extra || 0;
+  for (const [g, v] of Object.entries(order.options)) p += valueExtra(item, g, v);
   for (const m of order.modifiers) p += modifierDef(m)?.extra || 0;
   return p;
 }
@@ -108,7 +128,7 @@ export function prepMinutes(sc, order) {
   return item ? item.prep + ((order.quantity || 1) - 1) * 2 : 0;
 }
 
-// ราคาและชื่อที่แสดงบนป้ายเมนู (รวมเนื้อสัตว์ตั้งต้น เช่น ข้าวผัดกระเทียม + แซลมอน)
+// ราคาและชื่อที่แสดงบนป้ายเมนู (รวมเนื้อสัตว์ตั้งต้นถ้ามี)
 export function cardName(item, lang) {
   const p = item.defaults?.protein && valueDef('protein', item.defaults.protein);
   if (!p) return item[lang];
@@ -117,11 +137,13 @@ export function cardName(item, lang) {
 
 export function cardPrice(item) {
   let p = item.price;
-  for (const [g, v] of Object.entries(item.defaults || {})) p += valueDef(g, v)?.extra || 0;
+  for (const [g, v] of Object.entries(item.defaults || {})) p += valueExtra(item, g, v);
   return p;
 }
 
-export const enLower = (s) => s.toLowerCase().replace(/\b(thai|hainanese)\b/g, (w) => w[0].toUpperCase() + w.slice(1));
+// ชื่อภาษาอังกฤษในประโยค: ตัวพิมพ์เล็ก ยกเว้นชื่อเฉพาะ
+const PROPER = /\b(thai|hainanese|shirley temple|margherita|piña colada|pina colada|pain au chocolat)\b/gi;
+export const enLower = (s) => s.toLowerCase().replace(PROPER, (w) => w.replace(/(^|\s)\S/g, (c) => c.toUpperCase()));
 
 export function itemLabel(sc, order, lang = 'th') {
   const item = itemById(sc, order.item);
@@ -129,7 +151,7 @@ export function itemLabel(sc, order, lang = 'th') {
   const p = valueDef('protein', order.options.protein);
   const t = valueDef('temperature', order.options.temperature);
   if (lang === 'en') {
-    let n = enLower(item.en) + (item.kind === 'drink' && (order.quantity || 1) > 1 ? 's' : '');
+    let n = enLower(item.en) + (item.kind === 'drink' && (order.quantity || 1) > 1 && !/s$/.test(item.en) ? 's' : '');
     if (t) n = `${t.en} ${n}`;
     if (p) n += ` with ${p.en}`;
     return n;
@@ -144,8 +166,8 @@ export function describeOrder(sc, order, lang = 'th') {
   const extras = [];
   for (const g of item.groups) {
     const v = order.options[g];
-    if (!v || g === 'protein' || g === 'temperature' || (g === 'portion' && v === 'regular')) continue;
-    extras.push(valueDef(g, v)[lang]);
+    if (!v || g === 'protein' || g === 'temperature' || (!GROUPS[g].required && GROUPS[g].default === v)) continue; // ไม่ต้องพูด "จานธรรมดา"
+    extras.push((valueDef(g, v).say || valueDef(g, v))[lang]); // say = คำที่ใช้ในประโยค (เช่น "จานพิเศษ" แทน "พิเศษ")
   }
   for (const m of order.modifiers) extras.push(modifierDef(m)[lang]);
   if (lang === 'en') return [`${q === 1 ? 'one' : q} ${itemLabel(sc, order, 'en')}`, ...extras].join(', ');
@@ -173,7 +195,7 @@ export function allergyConflicts(sc, order, allergies = order.allergies) {
       }
     }
     for (const [g, v] of Object.entries(order.options)) {
-      if (valueDef(g, v)?.allergen === a) out.push({ kind: 'option', allergen: a, group: g, value: v });
+      if (valueAllergens(valueDef(g, v)).includes(a)) out.push({ kind: 'option', allergen: a, group: g, value: v });
     }
     for (const m of order.modifiers) {
       if (MODIFIERS[m]?.allergens?.includes(a)) out.push({ kind: 'addon', allergen: a, modifier: m });
@@ -194,7 +216,13 @@ export function allergenInItem(sc, item, order, allergen) {
   const fixed = (item.fixed || []).filter((i) => INGREDIENTS[i].allergen === allergen);
   const removable = removableOf(sc, item).filter((i) => INGREDIENTS[i].allergen === allergen);
   const options = order.item === item.id
-    ? Object.entries(order.options).filter(([g, v]) => valueDef(g, v)?.allergen === allergen).map(([g, v]) => valueDef(g, v))
+    ? Object.entries(order.options).filter(([g, v]) => valueAllergens(valueDef(g, v)).includes(allergen)).map(([g, v]) => valueDef(g, v))
     : [];
   return { fixed, removable, options, any: fixed.length + removable.length + options.length > 0 };
+}
+
+// สารก่อภูมิแพ้ทั้งหมดที่อาจอยู่ในเมนู (ไว้แสดงไอคอนบนป้ายเมนู)
+export function itemAllergens(sc, item) {
+  const out = new Set([...removableOf(sc, item), ...(item.fixed || [])].map((i) => INGREDIENTS[i].allergen).filter(Boolean));
+  return [...out];
 }

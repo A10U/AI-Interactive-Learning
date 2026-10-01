@@ -1,6 +1,7 @@
-// Post-Scenario Debrief: สรุปคะแนน Goal Completion / Efficiency / Politeness / Clarity (+ Safety เมื่อมีอาการแพ้)
+// Post-Scenario Debrief: สรุปคะแนน Goal Completion / Efficiency / Politeness / Clarity
+// (+ Safety เมื่อมีอาการแพ้ หรือเรื่องแอลกอฮอล์: อายุไม่ถึง / ต้องขับรถ)
 import { GROUPS, getScenario } from './scenarios.js';
-import { normalizeOrder, describeOrder, allergyConflicts, allergenName, listText, itemById, cardName, modifierDef, valueDef, missingSlots } from './order.js';
+import { normalizeOrder, describeOrder, allergyConflicts, allergenName, listText, itemById, cardName, modifierDef, valueDef, missingSlots, orderHasAlcohol } from './order.js';
 
 const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
@@ -17,6 +18,9 @@ const T = {
     safetyUndeclared: (l) => `ไม่ได้แจ้งว่าแพ้${l}`,
     safetyUnsafe: 'ออเดอร์สุดท้ายยังมีส่วนผสมที่คุณแพ้',
     quantity: 'จำนวน', allergy: (a) => `แจ้งแพ้${a}`, item: 'เมนู',
+    alcoholFree: 'ไม่มีแอลกอฮอล์', idVerified: 'แสดงบัตรยืนยันอายุ',
+    alcoholUnsafe: (why) => `ออเดอร์สุดท้ายมีแอลกอฮอล์ ทั้งที่${why}`, underage: 'อายุยังไม่ถึง 20 ปี', driving: 'ต้องขับรถ',
+    alcoholOk: 'เลือกเครื่องดื่มได้อย่างรับผิดชอบ', lied: 'บอกอายุไม่ตรงความจริง',
     s: {
       oneShot: 'สั่งครบตั้งแต่ประโยคแรก แล้วยืนยันได้ทันที ยอดเยี่ยมมาก!',
       multi: 'ใช้การชี้/เลือกตัวเลือกผสมคำพูดหรือข้อความได้อย่างมีประสิทธิภาพ',
@@ -25,6 +29,7 @@ const T = {
       recap: 'ทวนออเดอร์ด้วยตัวเองได้ครบถ้วน',
       allergy: 'แจ้งอาการแพ้อาหารได้ชัดเจน',
       safety: 'ถามส่วนผสมและยืนยันความปลอดภัยกับพนักงาน',
+      id: 'แสดงบัตรยืนยันอายุตามกฎหมาย',
     },
     i: {
       efficiency: 'ลองรวมข้อมูลทั้งหมดไว้ในประโยคเดียว จะใช้เทิร์นน้อยลง',
@@ -35,6 +40,8 @@ const T = {
       recap: 'ตอนพนักงานถามว่า "ถูกต้องไหม" ลองทวนออเดอร์ด้วยตัวเองแทนการตอบแค่ "ใช่"',
       declare: 'แจ้งอาการแพ้อาหารตั้งแต่ต้น ก่อนเลือกเมนูเสมอ',
       safety: 'ลองถามพนักงานว่า "เมนูนี้มี...ไหม" หรือ "มั่นใจได้ไหมว่าไม่มี..." เพื่อยืนยันความปลอดภัย',
+      honest: 'บอกอายุตามความจริงเสมอ — ร้านต้องตรวจบัตรอยู่แล้ว',
+      alcohol: 'เมื่ออายุไม่ถึงหรือต้องขับรถ ให้บอกพนักงานว่าขอแบบไม่มีแอลกอฮอล์',
     },
   },
   en: {
@@ -49,6 +56,9 @@ const T = {
     safetyUndeclared: (l) => `Never told the staff about your ${l} allergy`,
     safetyUnsafe: "The final order still contains something you're allergic to",
     quantity: 'quantity', allergy: (a) => `declare ${a} allergy`, item: 'item',
+    alcoholFree: 'alcohol-free', idVerified: 'show ID to confirm age',
+    alcoholUnsafe: (why) => `The final order contains alcohol even though ${why}`, underage: "you're under 20", driving: "you're driving",
+    alcoholOk: 'Chose drinks responsibly', lied: 'Gave a false age',
     s: {
       oneShot: 'Gave the full order in one go and confirmed right away — outstanding!',
       multi: 'Combined pointing/options with words effectively',
@@ -57,6 +67,7 @@ const T = {
       recap: 'Read the order back yourself accurately',
       allergy: 'Clearly declared your food allergy',
       safety: 'Asked about ingredients and confirmed safety with the staff',
+      id: 'Showed ID to confirm your age',
     },
     i: {
       efficiency: 'Put all the details in one sentence to save turns',
@@ -67,6 +78,8 @@ const T = {
       recap: 'When asked "is that correct?", try repeating the order back instead of just "yes"',
       declare: 'Always mention food allergies first, before choosing a dish',
       safety: 'Ask "Does this contain...?" or "Can you make sure there is no...?" to confirm safety',
+      honest: 'Always tell the truth about your age — the bar checks ID anyway',
+      alcohol: "When you're under 20 or driving, ask for the alcohol-free version",
     },
   },
 };
@@ -82,6 +95,8 @@ export function missionChecks(sc, mission, order, lang = 'th') {
   }
   for (const m of tg.modifiers || []) checks.push({ label: modifierDef(m)[lang], ok: order.modifiers.includes(m) });
   if (tg.quantity) checks.push({ label: `${t.quantity} ${tg.quantity}`, ok: (order.quantity || 1) === tg.quantity });
+  if (tg.alcoholFree) checks.push({ label: t.alcoholFree, ok: !!order.item && !orderHasAlcohol(sc, order) });
+  if (tg.idVerified) checks.push({ label: t.idVerified, ok: order.id_status === 'verified' });
   for (const a of mission.profile?.allergies || []) checks.push({ label: t.allergy(allergenName(a, lang)), ok: order.allergies.includes(a) });
   return checks;
 }
@@ -133,6 +148,17 @@ export function buildDebrief({ language = 'th', scenario, turns = [], order_stat
         : t.safetyOk;
   }
 
+  // Responsibility: อายุไม่ถึง 20 หรือต้องขับรถ → ออเดอร์สุดท้ายต้องไม่มีแอลกอฮอล์
+  const p = mission?.profile || {};
+  const noAlcoholReasons = [p.age != null && p.age < (sc.legalAge || 20) ? t.underage : null, p.driving ? t.driving : null].filter(Boolean);
+  const lied = turns.some((x) => x.coach?.flags?.lied);
+  if (sc.ageCheck && (noAlcoholReasons.length || lied)) {
+    const drunk = complete && orderHasAlcohol(sc, order);
+    safety = Math.max(0, (safety ?? 100) - (drunk ? 70 : 0) - (lied ? 40 : 0));
+    safetyNote = drunk ? t.alcoholUnsafe(noAlcoholReasons.join(', ')) : lied ? t.lied : t.alcoholOk;
+    if (drunk) { goal = Math.min(goal, 20); goalNote = safetyNote; }
+  }
+
   const scores = { goal, efficiency, politeness: politeness ?? 0, clarity: clarity ?? 0, safety };
   const pol = politeness ?? 60;
   const cla = clarity ?? 0;
@@ -156,6 +182,7 @@ export function buildDebrief({ language = 'th', scenario, turns = [], order_stat
   if (turns.some((x) => (x.channels?.point || x.channels?.select) && (x.channels?.speech || x.channels?.text))) strengths.push(t.s.multi);
   if (flag('allergy_declared')) strengths.push(t.s.allergy);
   if (flag('safety_asked')) strengths.push(t.s.safety);
+  if (flag('id_shown')) strengths.push(t.s.id);
   if (politeness != null && politeness >= 90) strengths.push(t.s.polite);
   if ((used.point || used.select) && !verbalUsed && complete) strengths.push(t.s.aac);
 
@@ -164,8 +191,10 @@ export function buildDebrief({ language = 'th', scenario, turns = [], order_stat
   if (clarity != null && clarity < 70) improvements.push(t.i.clarity);
   if ((used.point || used.select) && !verbalUsed) improvements.push(t.i.speak);
   if (profile.some((a) => !order.allergies.includes(a)) || flag('risk')) improvements.push(t.i.declare);
-  if (safety != null && !flag('safety_asked')) improvements.push(t.i.safety);
-  if (complete && sc.id !== 'cafe' && !flag('recap')) improvements.push(t.i.recap);
+  if (safety != null && (profile.length || order.allergies.length) && !flag('safety_asked')) improvements.push(t.i.safety);
+  if (complete && sc.recapFocus && !flag('recap')) improvements.push(t.i.recap);
+  if (lied) improvements.push(t.i.honest);
+  if (flag('alcohol_risk')) improvements.push(t.i.alcohol);
   if (mission && complete && goal < 100) improvements.push(t.i.mission);
 
   return {

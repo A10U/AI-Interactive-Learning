@@ -18,7 +18,7 @@ function lexicon(sc) {
   };
   for (const it of sc.menu) add('item', { id: it.id }, it.keywords);
   for (const g of new Set(sc.menu.flatMap((it) => it.groups))) {
-    for (const [v, d] of Object.entries(GROUPS[g].values)) add('option', { group: g, value: v, allergen: d.allergen }, d.kw);
+    for (const [v, d] of Object.entries(GROUPS[g].values)) add('option', { group: g, value: v, allergen: d.allergen || d.allergens?.[0] }, d.kw);
   }
   for (const id of sc.modifiers) add('mod', { id, allergens: MODIFIERS[id].allergens || [] }, MODIFIERS[id].kw);
   for (const [id, d] of Object.entries(INGREDIENTS)) add('ing', { id, allergen: d.allergen }, d.kw);
@@ -33,7 +33,7 @@ function shortEntries(pending) {
   if (!GROUPS[pending]) return [];
   const out = [];
   for (const [v, d] of Object.entries(GROUPS[pending].values)) {
-    for (const w of d.short || []) out.push({ kind: 'option', group: pending, value: v, allergen: d.allergen, w, rank: 1e6 + out.length });
+    for (const w of d.short || []) out.push({ kind: 'option', group: pending, value: v, allergen: d.allergen || d.allergens?.[0], w, rank: 1e6 + out.length });
   }
   return out;
 }
@@ -95,6 +95,7 @@ function contextOf(t, hits, i) {
   if (/^\s*(allerg|intoleran)/.test(after) || (/^\s*ไม่ได้/.test(after) && seg.includes('กิน'))) return { ctx: 'allergy', seg };
   if (neg >= 0) return { ctx: 'neg', seg };
   if (/^\s*ออก/.test(after) && seg.includes('เอา')) return { ctx: 'neg', seg };
+  if (/^\s*out\b/.test(after) && /(leave|take|keep)\s+(the\s+)?$/.test(seg)) return { ctx: 'neg', seg }; // "leave the cheese out"
   return { ctx: 'pos', seg };
 }
 
@@ -102,18 +103,25 @@ const NUMS = {
   'หนึ่ง': 1, 'นึง': 1, 'เดียว': 1, 'สอง': 2, 'สาม': 3, 'สี่': 4, 'ห้า': 5,
   one: 1, two: 2, three: 3, four: 4, five: 5,
 };
-const UNIT = '(แก้ว|จาน|ที่|กล่อง|ชุด|cups?|glass(?:es)?|plates?|servings?|orders?|portions?|bowls?)';
+const UNIT = '(แก้ว|จาน|ที่|กล่อง|ชุด|ชิ้น|ถาด|ชาม|ก้อน|cups?|glass(?:es)?|plates?|servings?|orders?|portions?|bowls?|pieces?|slices?|pizzas?|drinks?)';
 
 function findQuantity(t) {
   const digit = t.match(new RegExp(`(\\d+)\\s*${UNIT}`));
   if (digit) return Math.min(10, Math.max(1, parseInt(digit[1], 10)));
-  const th = t.match(/(หนึ่ง|นึง|เดียว|สอง|สาม|สี่|ห้า)\s*(แก้ว|จาน|ที่|กล่อง|ชุด)|(แก้ว|จาน|ที่|กล่อง|ชุด)\s*(หนึ่ง|นึง|เดียว|สอง|สาม|สี่|ห้า)/);
+  const th = t.match(/(หนึ่ง|นึง|เดียว|สอง|สาม|สี่|ห้า)\s*(แก้ว|จาน|ที่|กล่อง|ชุด|ชิ้น|ถาด|ชาม)|(แก้ว|จาน|ที่|กล่อง|ชุด|ชิ้น|ถาด|ชาม)\s*(หนึ่ง|นึง|เดียว|สอง|สาม|สี่|ห้า)/);
   if (th) return NUMS[th[1] || th[4]];
   const en = t.match(/(^|[^a-z])(one|two|three|four|five)([^a-z]|$)/);
   if (en) return NUMS[en[2]];
   const lead = t.match(/(^|[^a-z0-9])(\d)\s+[a-z]/);
   if (lead) return parseInt(lead[2], 10);
   return null;
+}
+
+// อายุที่ผู้เรียนบอก เช่น "อายุ 25", "I'm 18", "25 ปี"
+function findAge(t) {
+  const m = t.match(/(?:อายุ|age|i'?m|i am)\s*(\d{1,2})(?!\s*(?:แก้ว|ชิ้น|จาน|ถาด|cups?|glass|plates?|pieces?))/)
+    || t.match(/(\d{1,2})\s*(?:ปี|years? old|y\/o|yo\b)/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 const has = (t, words) => words.some((w) => t.includes(w));
@@ -210,6 +218,8 @@ export function parseUtterance(raw, sc, pending = null) {
     cancel: has(t, ['ยกเลิก', 'ไม่เอาแล้ว', 'เริ่มใหม่', 'cancel', 'start over', 'never mind']),
     safety: has(t, ['ปลอดภัย', 'แน่ใจ', 'มั่นใจ', 'รับรอง', 'แยกอุปกรณ์', 'แยกกระทะ', 'ปนเปื้อน', 'is it safe', 'safe for', 'make sure', 'are you sure', 'guarantee', 'cross contam', 'cross-contam', 'separate pan', 'separate utensil']),
     yes, no,
+    age: findAge(t),
+    showId: has(t, ['บัตรประชาชน', 'บัตรประจำตัว', 'โชว์บัตร', 'ยื่นบัตร', 'นี่บัตร', 'นี่ครับบัตร', 'พาสปอร์ต', 'หนังสือเดินทาง', 'passport', "here's my id", 'here is my id', 'show my id', 'my id', 'id card']),
     politeness: politenessScore(t),
   };
 }

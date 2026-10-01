@@ -3,12 +3,17 @@
 // ไฟล์ใน src/ ถูกก๊อปมาไว้ข้าง ๆ ตอน build (ดู .github/workflows/pages.yml)
 import { processTurn } from './src/actorEngine.js';
 import { buildDebrief } from './src/debrief.js';
+import { startCustomer, customerTurn, buildStaffDebrief } from './src/customerEngine.js';
+import { buildAssist } from './src/assistEngine.js';
 import { publicConfig } from './src/publicConfig.js';
 
 const ROUTES = {
   'GET /api/config': () => publicConfig('offline'),
   'POST /api/turn': (body) => processTurn(body),
-  'POST /api/debrief': (body) => buildDebrief(body),
+  'POST /api/debrief': (body) => (body.mode === 'staff' ? buildStaffDebrief(body) : buildDebrief(body)),
+  'POST /api/assist': (body) => buildAssist(body),
+  'POST /api/customer/start': (body) => startCustomer(body),
+  'POST /api/customer/turn': (body) => customerTurn(body),
 };
 
 export function installStaticApi() {

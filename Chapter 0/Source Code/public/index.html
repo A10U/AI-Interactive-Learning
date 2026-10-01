@@ -29,6 +29,7 @@
         <select id="modeSel">
           <option value="free" data-i18n="modeFree"></option>
           <option value="mission" data-i18n="modeMission"></option>
+          <option value="staff" data-i18n="modeStaff"></option>
         </select>
       </label>
       <label class="ctl"><span data-i18n="noise"></span>
@@ -48,14 +49,14 @@
     <!-- ฝั่งซ้าย: เคาน์เตอร์ + บทสนทนา -->
     <section class="counter">
       <div class="mission" id="missionCard" hidden>
-        <div class="mission-tag" data-i18n="missionTag"></div>
+        <div class="mission-tag" id="missionTag"></div>
         <div class="mission-title" id="missionTitle"></div>
         <div class="mission-desc" id="missionDesc"></div>
       </div>
 
       <div class="scene">
         <div class="barista" id="barista" data-state="idle">
-          <div class="face">🧑‍🍳</div>
+          <div class="face" id="baristaFace">🧑‍🍳</div>
           <div class="state-label" id="stateLabel"></div>
         </div>
         <div class="counter-top"></div>
@@ -64,15 +65,20 @@
       <div class="chat" id="chat" aria-live="polite"></div>
 
       <div class="composer">
+        <!-- ตัวช่วย (Assist Bot): แผงเหนือช่องพิมพ์ -->
+        <section class="assist" id="assistBox" hidden aria-live="polite"></section>
         <div class="staged" id="staged" hidden>
           <span id="stagedText"></span>
           <button class="x" id="clearPoint" aria-label="clear">✕</button>
         </div>
         <div class="input-row">
+          <button class="assist-btn" id="assistBtn"><span>💡</span><span data-i18n="assistBtn"></span></button>
           <button class="mic" id="micBtn" title="">🎤</button>
           <input id="textInput" autocomplete="off" />
           <button class="send" id="sendBtn" data-i18n="send"></button>
         </div>
+        <!-- โหมดพนักงาน: ประโยคสำเร็จรูป แตะเพื่อใส่ในช่องพิมพ์ -->
+        <div class="phrases" id="phrases" hidden></div>
         <div class="hint" id="hint"></div>
       </div>
     </section>
@@ -81,14 +87,16 @@
     <aside class="side">
       <section class="panel">
         <h2 data-i18n="menuBoard"></h2>
-        <p class="panel-sub" data-i18n="menuHint"></p>
+        <p class="panel-sub" id="menuHint"></p>
         <div class="menu" id="menu"></div>
+        <p class="extras-legend" id="extrasLegend" hidden></p>
       </section>
 
       <section class="panel ticket">
-        <h2 data-i18n="ticket"></h2>
+        <h2 id="ticketTitle"></h2>
         <ul class="slots" id="slots"></ul>
-        <div class="total"><span data-i18n="total"></span><strong id="total">0 ฿</strong></div>
+        <div class="ticket-tags" id="ticketTags"></div>
+        <div class="total"><span id="totalLabel"></span><strong id="total">0 ฿</strong></div>
       </section>
 
       <section class="panel coach">

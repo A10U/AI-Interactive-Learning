@@ -29,38 +29,38 @@ export const INGREDIENTS = {
 };
 
 // ---------------------------------------------------------------- ตัวเลือกแบบเลือกได้ 1 ค่า (Slot)
-// required = ต้องได้ข้อมูลก่อนทวนออเดอร์, partial = ยังต้องถามรายละเอียดเพิ่ม (refine),
+// required = ต้องได้ข้อมูลก่อนทวนออเดอร์, q = คำที่บ่งว่าพนักงานถามเรื่องนี้ (โหมดสลับบทบาท), partial = ยังต้องถามรายละเอียดเพิ่ม (refine),
 // short = คำตอบสั้นๆ ที่ตีความได้เฉพาะตอนพนักงานกำลังถามเรื่องนั้นอยู่
 export const GROUPS = {
-  temperature: { th: 'ร้อน/เย็น/ปั่น', en: 'Hot/iced/frappé', required: true, values: {
+  temperature: { th: 'ร้อน/เย็น/ปั่น', en: 'Hot/iced/frappé', required: true, q: ['ร้อน', 'เย็น', 'ปั่น', 'hot', 'iced', 'cold'], values: {
     hot:    { th: 'ร้อน', en: 'hot',    extra: 0,  kw: ['ร้อน', 'อุ่น', 'hot', 'warm'] },
     iced:   { th: 'เย็น', en: 'iced',   extra: 5,  kw: ['เย็น', 'ไอซ์', 'iced', 'ice', 'cold'] },
     frappe: { th: 'ปั่น', en: 'frappé', extra: 10, kw: ['ปั่น', 'frappe', 'frappé', 'blended', 'smoothie'] },
   } },
-  milk: { th: 'นม', en: 'Milk', required: true, values: {
+  milk: { th: 'นม', en: 'Milk', required: true, q: ['นม', 'milk'], values: {
     dairy: { th: 'นมวัว',        en: 'dairy milk', extra: 0,  allergen: 'dairy',
       kw: ['นมวัว', 'นมสด', 'นมจืด', 'dairy milk', 'whole milk', 'fresh milk', 'cow milk', 'regular milk'], short: ['ปกติ', 'ธรรมดา', 'normal', 'regular', 'dairy'] },
     oat:   { th: 'นมโอ๊ต',       en: 'oat milk',   extra: 15, kw: ['นมโอ๊ต', 'นมโอ๊ท', 'นมโอต', 'โอ๊ต', 'โอ๊ท', 'oat milk', 'oat'] },
     soy:   { th: 'นมถั่วเหลือง', en: 'soy milk',   extra: 10, kw: ['นมถั่วเหลือง', 'ถั่วเหลือง', 'โซย่า', 'soy milk', 'soya', 'soy'] },
   } },
-  sweetness: { th: 'ความหวาน', en: 'Sweetness', required: true, values: {
+  sweetness: { th: 'ความหวาน', en: 'Sweetness', required: true, q: ['หวาน', 'น้ำตาล', 'sweet', 'sugar'], values: {
     none:   { th: 'ไม่หวาน',  en: 'no sugar', extra: 0,
       kw: ['ไม่หวาน', 'หวาน 0', 'หวาน0', 'หวานศูนย์', 'ไม่ใส่น้ำตาล', 'no sugar', 'unsweetened', 'sugar free', 'sugar-free', 'without sugar', 'not sweet'], short: ['ศูนย์', 'no', 'none', 'zero'] },
     less:   { th: 'หวานน้อย', en: 'less sweet', extra: 0,
       kw: ['หวานน้อย', 'หวาน 25', 'หวาน 50', 'หวานครึ่ง', 'หวานนิด', 'less sweet', 'less sugar', 'half sweet', 'half sugar', 'little sugar', 'slightly sweet'], short: ['น้อย', 'นิดเดียว', 'ครึ่ง', 'less', 'half', 'a little'] },
     normal: { th: 'หวานปกติ', en: 'normal sweetness', extra: 0,
-      kw: ['หวานปกติ', 'หวานกลาง', 'หวาน 100', 'หวานธรรมดา', 'normal sweet', 'regular sweet', 'normal sugar', 'regular sugar'], short: ['ปกติ', 'ธรรมดา', 'กลาง', 'หวาน', 'normal', 'regular', 'standard', 'sweet'] },
+      kw: ['หวานปกติ', 'หวานกลาง', 'หวาน 100', 'หวานธรรมดา', 'normal sweetness', 'regular sweetness', 'normal sweet', 'regular sweet', 'normal sugar', 'regular sugar'], short: ['ปกติ', 'ธรรมดา', 'กลาง', 'หวาน', 'normal', 'regular', 'standard', 'sweet'] },
     extra:  { th: 'หวานมาก',  en: 'extra sweet', extra: 0,
       kw: ['หวานมาก', 'หวานๆ', 'หวาน ๆ', 'หวานเพิ่ม', 'หวานจัด', 'extra sweet', 'extra sugar', 'more sugar', 'very sweet', 'sweeter'], short: ['มาก', 'เยอะ', 'extra', 'more', 'very'] },
   } },
-  size: { th: 'ไซส์', en: 'Size', required: true, values: {
+  size: { th: 'ไซส์', en: 'Size', required: true, q: ['ไซส์', 'ขนาด', 'size'], values: {
     regular: { th: 'ไซส์ปกติ', en: 'regular size', extra: 0,
       kw: ['ไซส์ปกติ', 'ขนาดปกติ', 'แก้วปกติ', 'ไซส์กลาง', 'ไซส์เล็ก', 'แก้วเล็ก', 'ไซส์ m', 'size m', '16 ออนซ์', '16 oz', 'regular size', 'normal size', 'medium', 'small', 'tall'],
       short: ['ปกติ', 'ธรรมดา', 'กลาง', 'เล็ก', 'm', 'regular', 'normal'] },
     large:   { th: 'ไซส์ใหญ่', en: 'large size', extra: 10,
       kw: ['ไซส์ใหญ่', 'แก้วใหญ่', 'ขนาดใหญ่', 'ใหญ่', 'ไซส์แอล', 'ไซส์ l', 'size l', '22 ออนซ์', '22 oz', 'large', 'big', 'grande', 'venti'], short: ['l'] },
   } },
-  protein: { th: 'เนื้อสัตว์', en: 'Protein', required: true, values: {
+  protein: { th: 'เนื้อสัตว์', en: 'Protein', required: true, q: ['เนื้อสัตว์', 'เนื้ออะไร', 'protein', 'meat'], values: {
     minced_pork: { th: 'หมูสับ',      en: 'minced pork',  extra: 0,  kw: ['หมูสับ', 'หมูบด', 'หมู', 'minced pork', 'ground pork', 'pork'] },
     crispy_pork: { th: 'หมูกรอบ',     en: 'crispy pork',  extra: 15, kw: ['หมูกรอบ', 'crispy pork', 'pork belly'] },
     chicken:     { th: 'ไก่',          en: 'chicken',      extra: 0,  kw: ['อกไก่', 'ไก่', 'chicken'] },
@@ -70,7 +70,7 @@ export const GROUPS = {
     saba:        { th: 'ปลาซาบะย่าง',  en: 'grilled saba', extra: 40, allergen: 'seafood', kw: ['ปลาซาบะย่าง', 'ปลาซาบะ', 'ซาบะ', 'saba', 'mackerel'] },
     tofu:        { th: 'เต้าหู้',       en: 'tofu',         extra: 0,  kw: ['เต้าหู้', 'tofu'] },
   } },
-  spice: { th: 'ความเผ็ด', en: 'Spice level', required: true, values: {
+  spice: { th: 'ความเผ็ด', en: 'Spice level', required: true, q: ['เผ็ด', 'spicy', 'spice'], values: {
     none:   { th: 'ไม่เผ็ด',  en: 'not spicy', extra: 0,
       kw: ['ไม่เผ็ด', 'ไม่ใส่พริก', 'ไม่เอาพริก', 'ไม่เอาเผ็ด', 'not spicy', 'no chili', 'no chilli', 'no spice', 'non-spicy', 'non spicy'], short: ['none', 'ไม่เลย', 'not at all'] },
     mild:   { th: 'เผ็ดน้อย', en: 'mild', extra: 0,
@@ -81,20 +81,22 @@ export const GROUPS = {
     hot:    { th: 'เผ็ดมาก',  en: 'very spicy', extra: 0,
       kw: ['เผ็ดมาก', 'เผ็ดๆ', 'เผ็ด ๆ', 'เผ็ดจัด', 'เผ็ดสุด', 'very spicy', 'extra spicy', 'really spicy', 'super spicy'], short: ['มาก', 'เยอะ', 'จัด', 'very', 'extra'] },
   } },
-  egg: { th: 'ไข่', en: 'Egg', required: false, values: {
+  egg: { th: 'ไข่', en: 'Egg', required: false, q: ['ไข่', 'egg'], values: {
     fried:       { th: 'ไข่ดาว',        en: 'fried egg', extra: 10, allergen: 'egg', partial: true, refine: ['fried_well', 'fried_runny'],
       kw: ['ไข่ดาว', 'fried egg'] },
     fried_well:  { th: 'ไข่ดาวสุก',     en: 'fried egg (well done)', extra: 10, allergen: 'egg',
-      kw: ['ไข่ดาวสุกๆ', 'ไข่ดาวสุก ๆ', 'ไข่ดาวสุก', 'ไข่ดาวไม่เยิ้ม', 'well-done fried egg', 'well done fried egg', 'fried egg well done', 'fried egg, well done', 'well-done egg', 'well done egg'],
+      say: { th: 'ไข่ดาวสุก', en: 'well-done fried egg' },
+      kw: ['ไข่ดาวสุกๆ', 'ไข่ดาวสุก ๆ', 'ไข่ดาวสุก', 'ไข่ดาวไม่เยิ้ม', 'fried egg (well done)', 'well-done fried egg', 'well done fried egg', 'fried egg well done', 'fried egg, well done', 'well-done egg', 'well done egg'],
       short: ['สุกๆ', 'สุก ๆ', 'สุก', 'well done', 'well-done', 'cooked through', 'fully cooked', 'hard'] },
     fried_runny: { th: 'ไข่ดาวไม่สุก',  en: 'fried egg (runny)', extra: 10, allergen: 'egg',
-      kw: ['ไข่ดาวไม่สุก', 'ไข่ดาวยางมะตูม', 'ไข่ดาวเยิ้ม', 'runny fried egg', 'fried egg runny', 'fried egg, runny', 'runny egg', 'sunny side up', 'sunny-side up'],
+      say: { th: 'ไข่ดาวไม่สุก', en: 'runny fried egg' },
+      kw: ['ไข่ดาวไม่สุก', 'ไข่ดาวยางมะตูม', 'ไข่ดาวเยิ้ม', 'fried egg (runny)', 'runny fried egg', 'fried egg runny', 'fried egg, runny', 'runny egg', 'sunny side up', 'sunny-side up'],
       short: ['ไม่สุก', 'ยางมะตูม', 'เยิ้ม', 'runny', 'soft'] },
     omelette:    { th: 'ไข่เจียว',      en: 'omelette', extra: 15, allergen: 'egg', kw: ['ไข่เจียว', 'omelette', 'omelet'] },
   } },
-  portion: { th: 'ขนาดจาน', en: 'Portion', required: false, default: 'regular', values: {
+  portion: { th: 'ขนาดจาน', en: 'Portion', required: false, default: 'regular', q: ['จานพิเศษ', 'จานธรรมดา', 'ขนาดจาน', 'portion'], values: {
     regular: { th: 'ธรรมดา', en: 'regular portion', extra: 0,  kw: ['จานธรรมดา', 'regular portion', 'normal portion', 'standard portion'] },
-    large:   { th: 'พิเศษ',  en: 'large portion',   extra: 10,
+    large:   { th: 'พิเศษ',  en: 'large portion',   extra: 10, say: { th: 'จานพิเศษ', en: 'large portion' },
       kw: ['จานพิเศษ', 'จานใหญ่', 'large portion', 'big portion', 'extra portion', 'large plate', { w: 'พิเศษ', standalone: true }, { w: 'large', standalone: true }] },
   } },
 };
@@ -136,7 +138,7 @@ const CAFE_MENU = [
   drink('cappuccino', 'คาปูชิโน่',   'Cappuccino',     '☁️', 'coffee', 55, ['hot', 'iced', 'frappe'], true, ['คาปูชิโน่', 'คาปูชิโน', 'คาปู', 'cappuccino', 'capuccino', 'cappucino']),
   drink('mocha',      'มอคค่า',     'Mocha',          '🍫', 'coffee', 60, ['hot', 'iced', 'frappe'], true, ['มอคค่า', 'มอคคา', 'ม็อคค่า', 'mocha', 'mocca']),
   drink('thai_tea',   'ชาไทย',      'Thai Milk Tea',  '🧡', 'tea',    50, ['hot', 'iced', 'frappe'], true, ['ชาไทย', 'ชาเย็น', 'ชานมเย็น', 'thai tea', 'thai milk tea']),
-  drink('green_tea',  'ชาเขียวนม',  'Green Milk Tea', '🍵', 'tea',    55, ['hot', 'iced', 'frappe'], true, ['ชาเขียวนม', 'ชาเขียว', 'มัทฉะ', 'matcha', 'green tea']),
+  drink('green_tea',  'ชาเขียวนม',  'Green Milk Tea', '🍵', 'tea',    55, ['hot', 'iced', 'frappe'], true, ['ชาเขียวนม', 'ชาเขียว', 'มัทฉะ', 'matcha', 'green milk tea', 'green tea']),
   drink('cocoa',      'โกโก้',      'Cocoa',          '🍪', 'other',  50, ['hot', 'iced', 'frappe'], true, ['โกโก้', 'โกโก', 'ช็อกโกแลต', 'ช็อคโกแลต', 'cocoa', 'hot chocolate', 'chocolate']),
 ];
 
@@ -180,6 +182,8 @@ export const SCENARIOS = {
     staff: { th: 'บาริสต้า', en: 'Barista', emoji: '🧑‍🍳' },
     unit: { th: 'แก้ว', en: 'cup' },
     decor: '☕ 🥐 🍰 🧁 🍪 ☕',
+    tip: { th: 'ครั้งหน้าลองบอก ร้อน/เย็น ชนิดนม ความหวาน และไซส์ ไปพร้อมกันเลย', en: 'Next time, mention hot/iced, milk, sweetness and size together' },
+    recapExample: { th: '"ลาเต้เย็น นมโอ๊ต หวานน้อย ไซส์ปกตินะครับ"', en: '"An iced oat latte, less sweet, regular size, right?"' },
     focus: { th: 'ชี้เลือกเมนูบนแท็บเล็ต + พูดบอกระดับความหวาน', en: 'Point at the menu on the tablet + say the sweetness level' },
     menu: CAFE_MENU,
     modifiers: ['extra_shot', 'whipped', 'less_ice', 'takeaway', 'croissant', 'banana_cake', 'pb_cookie'],
@@ -214,6 +218,9 @@ export const SCENARIOS = {
     staff: { th: 'พนักงานร้าน', en: 'Server', emoji: '👨‍🍳' },
     unit: { th: 'จาน', en: 'plate' },
     decor: '🍳 🌶️ 🧄 🥢 🍚 🍳',
+    tip: { th: 'ครั้งหน้าลองบอกเนื้อสัตว์ ความเผ็ด และสิ่งที่ไม่ใส่ ในประโยคเดียว', en: 'Next time, give the protein, spice level and exclusions in one sentence' },
+    recapExample: { th: '"กะเพราหมูสับ เผ็ดน้อย ไม่ใส่ถั่วฝักยาวนะครับ"', en: '"Kaprao with minced pork, mild, no long beans, right?"' },
+    recapFocus: true,
     focus: { th: 'พิมพ์หรือเลือกตัวเลือกย่อย (Checkbox) + พูดทวนออเดอร์', en: 'Type or tick the modifier checkboxes + read the order back' },
     menu: FOOD_MENU, commonRemovable: ['msg'], modifiers: FOOD_MODS, generic: FOOD_GENERIC,
     opening: { th: 'สวัสดีครับ เชิญครับ วันนี้รับเมนูอะไรดีครับ? ทุกจานทำตามสั่งครับ', en: 'Hi, welcome! What would you like today? Everything is cooked to order.' },
@@ -240,6 +247,9 @@ export const SCENARIOS = {
     staff: { th: 'พนักงานเสิร์ฟ', en: 'Server', emoji: '👩‍🍳' },
     unit: { th: 'จาน', en: 'plate' },
     decor: '🩺 🥗 🍲 🥢 🍚 🩺',
+    tip: { th: 'ครั้งหน้าลองบอกเนื้อสัตว์ ความเผ็ด และสิ่งที่ไม่ใส่ ในประโยคเดียว', en: 'Next time, give the protein, spice level and exclusions in one sentence' },
+    recapExample: { th: '"กะเพราหมูสับ เผ็ดน้อย ไม่ใส่ถั่วฝักยาวนะครับ"', en: '"Kaprao with minced pork, mild, no long beans, right?"' },
+    recapFocus: true,
     focus: { th: 'แจ้งอาการแพ้อาหาร ถามส่วนผสม และยืนยันความปลอดภัยกับพนักงาน', en: 'Declare allergies, ask about ingredients and confirm safety with the staff' },
     menu: FOOD_MENU, commonRemovable: ['msg'], modifiers: FOOD_MODS, generic: FOOD_GENERIC, allergyPanel: true,
     opening: { th: 'สวัสดีครับ ยินดีต้อนรับครับ ดูเมนูได้เลยครับ รับอะไรดีครับ?', en: 'Hello and welcome! Have a look at the menu — what would you like?' },

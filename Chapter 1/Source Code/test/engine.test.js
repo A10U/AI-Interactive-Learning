@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { processTurn } from '../src/actorEngine.js';
 import { buildDebrief } from '../src/debrief.js';
 import { parseUtterance } from '../src/nlu.js';
-import { getScenario } from '../src/scenarios.js';
+import { getScenario, SCENARIO_LIST } from '../src/scenarios.js';
+import { startCustomer, customerTurn, buildStaffDebrief } from '../src/customerEngine.js';
+import { buildAssist } from '../src/assistEngine.js';
+import { emptyOrder } from '../src/order.js';
 
 function play(scenario, lang, turns, { noise = 'quiet', profile = null } = {}) {
   let order = null;
@@ -209,4 +212,96 @@ test('debrief: ภารกิจแพ้ถั่วแต่ไม่แจ�
   assert.equal(d.scores.safety, 0);
   assert.ok(d.scores.goal <= 20);
   assert.ok(d.improvements.length > 0);
+});
+
+// ---------------------------------------------------------------- โหมดสลับบทบาท (ผู้เรียนเป็นพนักงาน)
+function customer(scenario, target, profile = {}) {
+  const st = startCustomer({ scenario, language: 'th' }, () => 0.99).customer_state;
+  st.target = { ...emptyOrder(), ...target };
+  st.profile = profile;
+  st.safety_mods = target.safety_mods || [];
+  st.revealed = { item: true, quantity: (target.quantity || 1) === 1, options: {}, modifiers: [], allergies: !!profile.allergies };
+  return st;
+}
+function serve(scenario, st, lines) {
+  const log = [];
+  for (const l of lines) {
+    const r = customerTurn({ scenario, language: 'th', customer_state: st, current_turn: { user_text: l } });
+    st = r.customer_state;
+    log.push(r);
+  }
+  return log;
+}
+
+test('Role swap คาเฟ่: ถามรวดเดียว → ทวน → บอกราคาถูก = ขายสำเร็จ', () => {
+  const st = customer('cafe', { item: 'latte', options: { temperature: 'iced', milk: 'oat', sweetness: 'less', size: 'regular' }, quantity: 1 });
+  const log = serve('cafe', st, [
+    'สวัสดีครับ รับร้อนหรือเย็น นมอะไร หวานระดับไหน ไซส์ไหนดีครับ?',
+    'ลาเต้เย็น นมโอ๊ต หวานน้อย ไซส์ปกตินะครับ',
+    'ทั้งหมด 75 บาทครับ',
+  ]);
+  assert.equal(log[0].coach.rating, 'excellent');
+  assert.equal(log[2].customer_state.phase, 'done');
+  const d = buildStaffDebrief({ language: 'th', scenario: 'cafe', turns: log.map((r) => ({ coach: r.coach })), customer_state: log[2].customer_state });
+  assert.equal(d.stars, 3);
+});
+
+test('Role swap ร้านตามสั่ง: ลูกค้าอยากได้ไข่ดาวสุก — ต้องถาม "รับอะไรเพิ่มไหม" และทวนให้ครบ', () => {
+  const st = customer('restaurant', { item: 'food_01', options: { protein: 'minced_pork', spice: 'mild', egg: 'fried_well' }, quantity: 1 });
+  const early = serve('restaurant', st, ['ข้าวกะเพราหมูสับ เผ็ดน้อยนะครับ']);
+  assert.match(early[0].customer_reply, /ไข่ดาวสุก/); // ทวนขาด → ลูกค้าเติมให้
+  const log = serve('restaurant', st, ['รับเนื้อสัตว์อะไร เผ็ดระดับไหนดีครับ?', 'รับอะไรเพิ่มไหมครับ?', 'ข้าวกะเพราหมูสับ เผ็ดน้อย ไข่ดาวสุกนะครับ', 'ทั้งหมด 60 บาทครับ']);
+  assert.match(log[1].customer_reply, /ไข่ดาวสุก/);
+  assert.equal(log[2].coach.flags.readback_ok, true);
+  assert.equal(log[3].customer_state.phase, 'done');
+});
+
+test('Role swap: ถามเรื่องไข่ แต่ลูกค้าไม่เอาไข่ → "ไม่เอาครับ" (ไม่ error)', () => {
+  const st = customer('restaurant', { item: 'food_07', options: { spice: 'hot' }, quantity: 1 });
+  const [r] = serve('restaurant', st, ['รับไข่ดาวด้วยไหมครับ?']);
+  assert.ok(r.customer_reply.length > 0);
+});
+
+// ---------------------------------------------------------------- ตัวช่วย (Assist Bot)
+test('Assist: ทำตามตัวช่วยครบทุกภารกิจ ทุกสถานการณ์ ทั้งไทย/อังกฤษ → สั่งสำเร็จและผ่านภารกิจ', () => {
+  for (const lang of ['th', 'en']) {
+    for (const sc of SCENARIO_LIST) {
+      for (const m of sc.missions) {
+        let order = null;
+        const history = [];
+        for (let i = 0; i < 12 && !order?.is_complete; i++) {
+          const a = buildAssist({ scenario: sc.id, language: lang, order_state: order, dialogue_history: history, mission_id: m.id, learner_profile: m.profile || null });
+          const say = (a.suggestions.find((x) => x.star) || a.suggestions[0]).text;
+          const r = processTurn({ scenario: sc.id, language: lang, current_turn: { user_text: say }, dialogue_history: history, order_state: order, learner_profile: m.profile || null }, { rng: () => 1 });
+          history.push({ role: 'user', content: say }, { role: 'actor', content: r.actor_reply });
+          order = r.order_state;
+        }
+        assert.ok(order.is_complete, `${lang} ${sc.id} ${m.id}`);
+        const d = buildDebrief({ language: lang, scenario: sc.id, mission_id: m.id, order_state: order, turns: [] });
+        assert.ok(d.checks.every((c) => c.ok), `${lang} ${sc.id} ${m.id}: ${JSON.stringify(d.checks)}`);
+      }
+    }
+  }
+});
+
+test('Assist โหมดพนักงาน: ทำตามตัวช่วย → ขายสำเร็จทุกสถานการณ์ (สุ่มลูกค้า 25 คน/สถานการณ์)', () => {
+  for (const lang of ['th', 'en']) {
+    for (const sc of SCENARIO_LIST) {
+      for (let seed = 1; seed <= 25; seed++) {
+        let x = seed * 7919;
+        const rng = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+        const r0 = startCustomer({ scenario: sc.id, language: lang }, rng);
+        let st = r0.customer_state;
+        const history = [{ role: 'customer', content: r0.customer_reply }];
+        for (let i = 0; i < 12 && st.phase !== 'done'; i++) {
+          const a = buildAssist({ mode: 'staff', scenario: sc.id, language: lang, customer_state: st, dialogue_history: history });
+          const say = (a.suggestions.find((y) => y.star) || a.suggestions[0]).text;
+          const r = customerTurn({ scenario: sc.id, language: lang, current_turn: { user_text: say }, dialogue_history: history, customer_state: st });
+          history.push({ role: 'staff', content: say }, { role: 'customer', content: r.customer_reply });
+          st = r.customer_state;
+        }
+        assert.equal(st.phase, 'done', `${lang} ${sc.id} seed ${seed}`);
+      }
+    }
+  }
 });

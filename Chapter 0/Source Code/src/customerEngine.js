@@ -222,7 +222,8 @@ export function customerTurn(payload) {
   const text = [turn.user_speech, turn.user_text].filter((x) => x && x.trim()).join(' ');
   const r = readStaff(st, text);
   const out = [];
-  const ev = { newInfo: [], repeats: [], irrelevant: r.irrelevant, readback: null, price: null, allergyHandled: false, greeted: false };
+  // การทวนที่เอ่ย "ร้อน" กับเอสเปรสโซ่ ไม่ใช่การถามเรื่องที่ไม่เกี่ยว
+  const ev = { newInfo: [], repeats: [], irrelevant: r.irrelevant && !r.readback, readback: null, price: null, allergyHandled: false, greeted: false };
   st.turns += 1;
 
   if (st.phase === 'done') return result(st, S.done, 'serving', r, ev, lang);
@@ -404,7 +405,7 @@ function staffCoach(st, r, ev, lang) {
     flags: {
       greeted: ev.greeted, new_info: ev.newInfo, repeats: ev.repeats.length, readback_ok: !!ev.readback?.ok,
       readback_bad: !!(ev.readback && !ev.readback.ok), price_ok: !!ev.price?.ok, price_bad: !!(ev.price && !ev.price.ok),
-      allergy_ok: ev.allergyHandled,
+      allergy_ok: ev.allergyHandled, irrelevant: !!ev.irrelevant,
     },
   };
 }
